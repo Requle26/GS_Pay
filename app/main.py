@@ -30,7 +30,7 @@ def get_card_balance(serial_number: str):
         .table("students")
         .select("balance")
         .eq("nfc_serial", serial_number)
-        .eq("status", "active")
+        .eq("status", "ACTIVE")
         .limit(1)
         .execute()
     )
