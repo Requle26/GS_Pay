@@ -47,7 +47,47 @@ body {
   border: 3px solid currentColor;
   border-radius: 18px;
   cursor: pointer;
+  text-decoration: none;
 }
+
+.admin-auth-page {
+  min-height: 100dvh;
+  padding: 32px;
+  background: #f4fcfa;
+}
+
+.admin-brand {
+  color: #07ad8c;
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -1px;
+  text-decoration: none;
+}
+
+.login-card,
+.admin-dashboard {
+  width: min(100%, 430px);
+  margin: min(18vh, 150px) auto 0;
+  padding: 42px;
+  background: #fff;
+  border: 1px solid #dcebe7;
+  border-radius: 22px;
+  box-shadow: 0 14px 35px rgba(4, 92, 74, .11);
+}
+
+.eyebrow { margin: 0 0 9px; color: #07ad8c; font-size: .8rem; font-weight: 800; letter-spacing: .12em; }
+.login-card h1, .admin-dashboard h1 { font-size: 2rem; letter-spacing: -1.7px; }
+.login-description, .admin-dashboard > p { color: #66716e; }
+.login-error { margin: 20px 0 0; padding: 12px; color: #b42318; background: #fff0ef; border-radius: 9px; font-size: .92rem; }
+
+.login-form { display: grid; gap: 20px; margin-top: 30px; }
+.login-form label { display: grid; gap: 8px; color: #35403d; font-size: .93rem; font-weight: 700; }
+.login-form input { width: 100%; padding: 13px; font: inherit; border: 1px solid #c9d4d1; border-radius: 9px; outline-color: #07ad8c; }
+.login-form button, .logout-button { padding: 14px; color: #fff; font: inherit; font-weight: 700; background: #07ad8c; border: 0; border-radius: 9px; cursor: pointer; }
+
+.admin-header { display: flex; align-items: center; justify-content: space-between; }
+.logout-button { padding: 9px 14px; background: #fff; color: #087e68; border: 1px solid #9bd8cb; }
+.admin-note { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e4ece9; }
 
 .login-button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
 
@@ -130,4 +170,6 @@ footer {
   .topbar { height: 88px; padding: 0 20px; }
   .login-button { padding: 8px 13px; border-width: 2px; border-radius: 14px; font-size: .95rem; }
   .balance-section { padding-top: 100px; }
+  .admin-auth-page { padding: 22px; }
+  .login-card, .admin-dashboard { margin-top: 90px; padding: 29px 24px; }
 }

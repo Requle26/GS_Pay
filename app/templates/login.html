@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <main class="admin-auth-page">
+    <a class="admin-brand" href="/">GBSW_Pay</a>
+    <section class="login-card" aria-labelledby="login-title">
+      <p class="eyebrow">ADMIN</p>
+      <h1 id="login-title">관리자 로그인</h1>
+      <p class="login-description">관리자 계정으로 로그인해주세요.</p>
+
+      {% if error %}
+        <p class="login-error" role="alert">{{ error }}</p>
+      {% endif %}
+
+      <form method="post" action="/login" class="login-form">
+        <label>
+          이메일
+          <input name="email" type="email" autocomplete="email" required autofocus>
+        </label>
+        <label>
+          비밀번호
+          <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <button type="submit">로그인</button>
+      </form>
+    </section>
+  </main>
+{% endblock %}

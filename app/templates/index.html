@@ -4,10 +4,10 @@
   <main class="pay-page">
     <header class="topbar">
       <a class="brand" href="/" aria-label="GBSW Pay 홈">GBSW_Pay</a>
-      <button class="login-button" type="button">
+      <a class="login-button" href="/login">
         <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M13 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5M3 12h12m-4-4 4 4-4 4"/></svg>
         로그인
-      </button>
+      </a>
     </header>
 
     <section class="balance-section" aria-labelledby="page-title">
@@ -30,7 +30,7 @@
       <p id="scan-status" class="scan-status" aria-live="polite"></p>
     </section>
 
-    <footer>문의:</footer>
+    <footer>문의: 1402 김성일</footer>
   </main>
   <script src="{{ url_for('static', path='js/nfc.js') }}"></script>
 {% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <main class="admin-auth-page">
+    <header class="admin-header">
+      <a class="admin-brand" href="/">GBSW_Pay</a>
+      <form method="post" action="/logout">
+        <button class="logout-button" type="submit">로그아웃</button>
+      </form>
+    </header>
+    <section class="admin-dashboard" aria-labelledby="admin-title">
+      <p class="eyebrow">{{ admin.role }}</p>
+      <h1 id="admin-title">{{ admin.username }}님, 안녕하세요.</h1>
+      <p>관리자 인증이 완료되었습니다.</p>
+      <p class="admin-note">환전 및 거래 관리 기능은 이 페이지에 추가할 수 있습니다.</p>
+    </section>
+  </main>
+{% endblock %}
