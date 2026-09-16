@@ -1,0 +1,119 @@
+{% extends "base.html" %} {% block content %}
+<main class="admin-auth-page">
+  <header class="admin-header">
+    <a class="admin-brand" href="/">GBSW_Pay</a>
+    <form method="post" action="/logout">
+      <button class="logout-button" type="submit">로그아웃</button>
+    </form>
+  </header>
+  <section class="admin-dashboard" aria-labelledby="exchange-title">
+    <p class="eyebrow">EXCHANGE</p>
+    <h1 id="exchange-title">{{ admin.username }}님, 안녕하세요.</h1>
+    <p>환전소 관리 화면입니다.</p>
+  </section>
+  <section class="student-list" aria-labelledby="student-list-title">
+    <section class="exchange-scanner" aria-labelledby="scanner-title">
+      <p class="eyebrow">NFC REGISTER</p>
+      <h2 id="scanner-title">학생증 등록</h2>
+      <p id="exchange-scan-status" class="scan-status" aria-live="polite">
+        학생증을 인식하면 등록 여부를 확인합니다.
+      </p>
+      <button id="exchange-scan-button" class="scan-button" type="button">
+        <span>학생증 인식하기</span>
+      </button>
+
+      <div class="exchange-result-panel">
+        <div id="existing-student" class="student-result" hidden>
+          <p class="result-title">이미 등록된 학생증입니다.</p>
+          <dl id="existing-student-fields" class="student-fields"></dl>
+          <form id="student-charge-form" class="student-charge-form">
+            <label>
+              충전 금액
+              <input
+                name="amount"
+                type="number"
+                min="1"
+                step="100"
+                placeholder="받은 금액을 입력하세요"
+                required
+              />
+            </label>
+            <button type="submit">포인트 충전</button>
+            <p
+              id="student-charge-status"
+              class="scan-status"
+              aria-live="polite"
+            ></p>
+          </form>
+        </div>
+
+        <form id="student-register-form" class="student-register-form" hidden>
+          <p class="result-title">처음 인식된 학생증입니다.</p>
+          <input id="student-nfc-serial" name="nfc_serial" type="hidden" />
+          <label>
+            학번
+            <input name="student_number" type="text" required />
+          </label>
+          <label>
+            이름
+            <input name="name" type="text" required />
+          </label>
+          <label>
+            충전 금액
+            <input
+              name="amount"
+              type="number"
+              min="0"
+              step="100"
+              placeholder="받은 금액을 입력하세요"
+              required
+            />
+          </label>
+          <button type="submit">학생 정보 저장 및 충전</button>
+          <p
+            id="student-register-status"
+            class="scan-status"
+            aria-live="polite"
+          ></p>
+        </form>
+      </div>
+    </section>
+
+    <div class="student-list-heading">
+      <div>
+        <p class="eyebrow">STUDENTS</p>
+        <h2 id="student-list-title">학생 목록</h2>
+      </div>
+      <span class="student-count">{{ students | length }}명</span>
+    </div>
+
+    {% if students %}
+    <div class="student-table-wrapper">
+      <table class="student-table">
+        <thead>
+          <tr>
+            {% for column in student_columns %}
+            <th scope="col">{{ column }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for student in students %}
+          <tr>
+            {% for column in student_columns %}
+            <td>
+              {{ student[column] if student[column] is not none else '-' }}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="student-empty">등록된 학생이 없습니다.</p>
+    {% endif %}
+  </section>
+</main>
+<script src="{{ url_for('static', path='js/exchange.js') }}"></script>
+{% endblock %}
