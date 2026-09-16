@@ -1,0 +1,133 @@
+:root {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #000;
+  background: #fff;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+}
+
+.pay-page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  height: 109px;
+  padding: 0 29px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #07ad8c;
+  color: #fff;
+}
+
+.brand {
+  color: inherit;
+  font-size: clamp(1.8rem, 5vw, 2.25rem);
+  font-weight: 800;
+  letter-spacing: -1.8px;
+  text-decoration: none;
+}
+
+.login-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 11px 21px;
+  color: #fff;
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+  background: transparent;
+  border: 3px solid currentColor;
+  border-radius: 18px;
+  cursor: pointer;
+}
+
+.login-button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; stroke-linejoin: round; }
+
+.balance-section {
+  width: min(100%, 600px);
+  margin: 0 auto;
+  padding: clamp(10rem, 22vh, 14rem) 28px 4rem;
+  text-align: center;
+  background: radial-gradient(ellipse 75% 30% at 50% 50%, #c4f2e9 0%, rgba(224, 249, 244, .55) 38%, transparent 72%);
+}
+
+.student-card-icon {
+  position: relative;
+  width: 83px;
+  height: 115px;
+  margin: 0 auto 27px;
+  border-radius: 16px;
+  background: #09ae8d;
+}
+.student-card-icon span { position: absolute; top: 12px; left: 27px; width: 29px; height: 7px; border-radius: 4px; background: #fff; }
+.student-card-icon i { position: absolute; top: 61px; left: 43%; width: 20px; height: 20px; border-radius: 50%; background: #fff; }
+.student-card-icon b { position: absolute; bottom: 12px; left: 34px; width: 37px; height: 20px; border-radius: 50% 50% 7px 7px; background: #fff; }
+
+h1 {
+  margin: 0;
+  font-size: clamp(2.55rem, 9vw, 3.55rem);
+  line-height: 1.08;
+  letter-spacing: -3px;
+}
+h1 em { color: #07ad8c; font-style: normal; }
+
+.description { margin: 14px 0 46px; color: #737373; font-size: 1.03rem; }
+
+.balance-card {
+  min-height: 270px;
+  padding: 32px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: rgba(255, 255, 255, .92);
+  border: 1px solid #dedede;
+  border-radius: 17px;
+  box-shadow: 0 2px 9px rgba(0, 0, 0, .12);
+}
+.balance-label { margin: 0 0 41px; color: #777; font-weight: 700; font-size: 1.25rem; }
+.balance-value { margin: 0; font-size: clamp(2.6rem, 10vw, 3.5rem); font-weight: 700; letter-spacing: -2px; }
+.result-message { margin: 19px 0 0; color: #e04a4a; font-size: 1.1rem; font-weight: 700; }
+
+.scan-button {
+  width: 100%;
+  margin-top: 62px;
+  padding: 23px 18px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  color: #07ad8c;
+  font: inherit;
+  font-size: 1.45rem;
+  font-weight: 700;
+  background: #fff;
+  border: 3px solid #07ad8c;
+  border-radius: 34px;
+  cursor: pointer;
+}
+.scan-button:hover { background: #f1fffc; }
+.scan-button:disabled { opacity: .65; cursor: wait; }
+.scan-button svg { width: 41px; height: 34px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.scan-status { min-height: 1.5em; margin: 13px 0 0; color: #666; }
+
+footer {
+  margin-top: auto;
+  padding: 34px 0 57px;
+  color: #777;
+  text-align: center;
+  font-size: 1.1rem;
+}
+
+@media (max-width: 420px) {
+  .topbar { height: 88px; padding: 0 20px; }
+  .login-button { padding: 8px 13px; border-width: 2px; border-radius: 14px; font-size: .95rem; }
+  .balance-section { padding-top: 100px; }
+}
