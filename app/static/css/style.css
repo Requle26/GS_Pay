@@ -248,6 +248,63 @@ body {
   font-size: 1rem;
 }
 
+.serial-lookup-card {
+  max-width: 620px;
+  margin-top: 22px;
+  padding: 18px 20px;
+  background: #f4fcfa;
+  border: 1px solid #cfe9e2;
+  border-radius: 12px;
+}
+
+.serial-lookup-title {
+  margin: 0 0 12px;
+  color: #087e68;
+  font-weight: 800;
+}
+
+.serial-lookup-form {
+  max-width: 520px;
+}
+
+.serial-lookup-form label {
+  display: block;
+  margin-bottom: 7px;
+  color: #35403d;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.serial-lookup-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+.serial-lookup-row input {
+  min-width: 0;
+  padding: 11px 12px;
+  font: inherit;
+  border: 1px solid #c9d4d1;
+  border-radius: 8px;
+}
+
+.serial-lookup-row button {
+  padding: 11px 18px;
+  color: #087e68;
+  font: inherit;
+  font-weight: 700;
+  background: #e9faf6;
+  border: 1px solid #9bd8cb;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.serial-lookup-row button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
 .exchange-result-panel {
   height: 330px;
   margin-top: 20px;
@@ -606,6 +663,12 @@ footer {
   .student-list {
     margin-top: 22px;
     padding: 22px 16px;
+  }
+  .serial-lookup-card {
+    padding: 16px;
+  }
+  .serial-lookup-row {
+    grid-template-columns: 1fr;
   }
   .exchange-result-panel {
     height: 430px;

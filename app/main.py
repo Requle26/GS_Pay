@@ -1,4 +1,5 @@
 from pathlib import Path
+import logging
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -19,6 +20,7 @@ BASE_DIR = Path(__file__).resolve().parent
 app = FastAPI(title="GS Pay")
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
+logger = logging.getLogger(__name__)
 
 ROLE_DASHBOARD_URLS = {
     "ADMIN": "/admin",
@@ -205,6 +207,10 @@ def get_card_balance(serial_number: str):
 @app.get("/api/exchange/students/{serial_number}")
 def get_exchange_student(serial_number: str, request: Request):
     get_exchange_admin(request)
+    serial_number = serial_number.strip()
+    if not serial_number:
+        raise HTTPException(status_code=400, detail="시리얼 번호를 입력해주세요.")
+
     response = (
         get_supabase()
         .table("students")
@@ -222,7 +228,11 @@ def get_exchange_student(serial_number: str, request: Request):
         for column, value in response.data[0].items()
         if column != "id"
     }
-    return {"exists": True, "student": student}
+    return {
+        "exists": True,
+        "can_charge": str(student.get("status", "")).upper() == "ACTIVE",
+        "student": student,
+    }
 
 
 @app.post("/api/exchange/students")
@@ -243,31 +253,40 @@ def create_exchange_student(
     if amount is None or amount < 0:
         raise HTTPException(status_code=400, detail="충전 금액은 0원 이상이어야 합니다.")
 
-    existing_response = (
-        get_supabase()
-        .table("students")
-        .select("id")
-        .eq("nfc_serial", nfc_serial)
-        .limit(1)
-        .execute()
-    )
-    if existing_response.data:
-        raise HTTPException(status_code=409, detail="이미 등록된 학생증입니다.")
-
-    insert_response = (
-        get_supabase()
-        .table("students")
-        .insert(
-            {
-                "nfc_serial": nfc_serial,
-                "student_number": student_number,
-                "name": name,
-                "balance": amount,
-                "status": "ACTIVE",
-            }
+    try:
+        existing_response = (
+            get_supabase()
+            .table("students")
+            .select("id")
+            .eq("nfc_serial", nfc_serial)
+            .limit(1)
+            .execute()
         )
-        .execute()
-    )
+        if existing_response.data:
+            raise HTTPException(status_code=409, detail="이미 등록된 학생증입니다.")
+
+        insert_response = (
+            get_supabase()
+            .table("students")
+            .insert(
+                {
+                    "nfc_serial": nfc_serial,
+                    "student_number": student_number,
+                    "name": name,
+                    "balance": amount,
+                    "status": "ACTIVE",
+                }
+            )
+            .execute()
+        )
+    except HTTPException:
+        raise
+    except Exception as error:
+        logger.exception("Student registration failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"학생 정보를 저장하지 못했습니다: {error}",
+        ) from error
     if not insert_response.data:
         raise HTTPException(status_code=500, detail="학생 정보를 저장하지 못했습니다.")
 
@@ -286,32 +305,59 @@ def charge_exchange_student(
     amount: int | None = Form(default=None),
 ):
     get_exchange_admin(request)
+    serial_number = serial_number.strip()
     if amount is None or amount <= 0:
         raise HTTPException(status_code=400, detail="충전 금액은 1원 이상이어야 합니다.")
 
-    student_response = (
-        get_supabase()
-        .table("students")
-        .select("*")
-        .eq("nfc_serial", serial_number)
-        .eq("status", "ACTIVE")
-        .limit(1)
-        .execute()
-    )
+    try:
+        student_response = (
+            get_supabase()
+            .table("students")
+            .select("*")
+            .eq("nfc_serial", serial_number)
+            .eq("status", "ACTIVE")
+            .limit(1)
+            .execute()
+        )
+    except Exception as error:
+        logger.exception("Student lookup before charge failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"학생 잔액을 확인하지 못했습니다: {error}",
+        ) from error
+
     if not student_response.data:
         raise HTTPException(status_code=404, detail="등록된 학생증이 아닙니다.")
 
     student = student_response.data[0]
-    current_balance = int(student.get("balance") or 0)
-    update_response = (
-        get_supabase()
-        .table("students")
-        .update({"balance": current_balance + amount})
-        .eq("nfc_serial", serial_number)
-        .execute()
-    )
+    try:
+        current_balance = int(student.get("balance") or 0)
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=500, detail="현재 잔액 형식이 올바르지 않습니다.") from error
+
+    try:
+        update_response = (
+            get_supabase()
+            .table("students")
+            .update({"balance": current_balance + amount})
+            .eq("nfc_serial", serial_number)
+            .eq("status", "ACTIVE")
+            .eq("balance", current_balance)
+            .select("*")
+            .execute()
+        )
+    except Exception as error:
+        logger.exception("Student charge update failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"충전 정보를 저장하지 못했습니다: {error}",
+        ) from error
+
     if not update_response.data:
-        raise HTTPException(status_code=500, detail="충전 정보를 저장하지 못했습니다.")
+        raise HTTPException(
+            status_code=409,
+            detail="잔액이 변경되었습니다. 학생증을 다시 조회한 뒤 충전해주세요.",
+        )
 
     updated_student = {
         column: value

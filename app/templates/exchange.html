@@ -10,6 +10,25 @@
     <p class="eyebrow">EXCHANGE</p>
     <h1 id="exchange-title">{{ admin.username }}님, 안녕하세요.</h1>
     <p>환전소 관리 화면입니다.</p>
+    <div class="serial-lookup-card" aria-labelledby="serial-lookup-title">
+      <p id="serial-lookup-title" class="serial-lookup-title">
+        시리얼 번호로 학생 조회
+      </p>
+      <form id="serial-lookup-form" class="serial-lookup-form">
+        <label for="serial-number-input">NFC 시리얼 번호 직접 입력</label>
+        <div class="serial-lookup-row">
+          <input
+            id="serial-number-input"
+            name="serial_number"
+            type="text"
+            placeholder="시리얼 번호를 입력하세요"
+            autocomplete="off"
+            required
+          />
+          <button type="submit">조회</button>
+        </div>
+      </form>
+    </div>
   </section>
   <section class="student-list" aria-labelledby="student-list-title">
     <section class="exchange-scanner" aria-labelledby="scanner-title">
@@ -32,7 +51,7 @@
               <input
                 name="amount"
                 type="number"
-                min="1"
+                min="100"
                 step="100"
                 placeholder="받은 금액을 입력하세요"
                 required
@@ -84,10 +103,11 @@
         <p class="eyebrow">STUDENTS</p>
         <h2 id="student-list-title">학생 목록</h2>
       </div>
-      <span class="student-count">{{ students | length }}명</span>
+      <span id="student-count" class="student-count"
+        >{{ students | length }}명</span
+      >
     </div>
 
-    {% if students %}
     <div class="student-table-wrapper">
       <table class="student-table">
         <thead>
@@ -97,9 +117,9 @@
             {% endfor %}
           </tr>
         </thead>
-        <tbody>
+        <tbody id="student-table-body">
           {% for student in students %}
-          <tr>
+          <tr data-student-serial="{{ student.nfc_serial }}">
             {% for column in student_columns %}
             <td>
               {{ student[column] if student[column] is not none else '-' }}
@@ -110,10 +130,22 @@
         </tbody>
       </table>
     </div>
-    {% else %}
-    <p class="student-empty">등록된 학생이 없습니다.</p>
-    {% endif %}
+    <p
+      id="student-empty"
+      class="student-empty"
+      {%
+      if
+      students
+      %}hidden{%
+      endif
+      %}
+    >
+      등록된 학생이 없습니다.
+    </p>
   </section>
 </main>
+<script>
+  window.studentColumns = {{ student_columns | tojson }};
+</script>
 <script src="{{ url_for('static', path='js/exchange.js') }}"></script>
 {% endblock %}

@@ -9,6 +9,12 @@ const registerStatus = document.querySelector("#student-register-status");
 const serialInput = document.querySelector("#student-nfc-serial");
 const chargeForm = document.querySelector("#student-charge-form");
 const chargeStatus = document.querySelector("#student-charge-status");
+const serialLookupForm = document.querySelector("#serial-lookup-form");
+const serialNumberInput = document.querySelector("#serial-number-input");
+const studentTableBody = document.querySelector("#student-table-body");
+const studentCount = document.querySelector("#student-count");
+const studentEmpty = document.querySelector("#student-empty");
+const studentColumns = window.studentColumns || [];
 let scannedSerialNumber = "";
 
 const SCAN_TIMEOUT_MS = 30_000;
@@ -30,12 +36,13 @@ function setScanning(isScanning) {
 function resetStudentResult() {
   existingStudent.hidden = true;
   registerForm.hidden = true;
+  chargeForm.hidden = false;
   existingStudentFields.replaceChildren();
   registerStatus.textContent = "";
   chargeStatus.textContent = "";
 }
 
-function showStudent(student) {
+function showStudent(student, canCharge = true) {
   existingStudentFields.replaceChildren();
   Object.entries(student).forEach(([column, value]) => {
     const term = document.createElement("dt");
@@ -47,7 +54,32 @@ function showStudent(student) {
         : (value ?? "-");
     existingStudentFields.append(term, detail);
   });
+  chargeForm.hidden = !canCharge;
   existingStudent.hidden = false;
+}
+
+function updateStudentList(student) {
+  const serialNumber = String(student.nfc_serial || "");
+  let row = Array.from(studentTableBody.rows).find(
+    (currentRow) => currentRow.dataset.studentSerial === serialNumber,
+  );
+
+  if (!row) {
+    row = document.createElement("tr");
+    row.dataset.studentSerial = serialNumber;
+    studentTableBody.append(row);
+  }
+
+  row.replaceChildren(
+    ...studentColumns.map((column) => {
+      const cell = document.createElement("td");
+      cell.textContent = student[column] ?? "-";
+      return cell;
+    }),
+  );
+
+  studentCount.textContent = `${studentTableBody.rows.length}명`;
+  studentEmpty.hidden = studentTableBody.rows.length > 0;
 }
 
 async function checkStudent(serialNumber) {
@@ -56,6 +88,35 @@ async function checkStudent(serialNumber) {
   );
   if (!response.ok) throw new Error("학생 정보를 확인하지 못했습니다.");
   return response.json();
+}
+
+async function handleStudentIdentifier(serialNumber) {
+  const normalizedSerialNumber = serialNumber.trim();
+  if (!normalizedSerialNumber) {
+    scanStatus.textContent = "시리얼 번호를 입력해주세요.";
+    return;
+  }
+
+  resetStudentResult();
+  scannedSerialNumber = normalizedSerialNumber;
+  serialInput.value = normalizedSerialNumber;
+  scanStatus.textContent = "학생증 등록 여부를 확인하는 중입니다...";
+
+  try {
+    const result = await checkStudent(normalizedSerialNumber);
+    if (result.exists) {
+      showStudent(result.student, result.can_charge);
+      scanStatus.textContent = result.can_charge
+        ? "등록된 학생증입니다."
+        : "정지된 학생증입니다. 충전할 수 없습니다.";
+      return;
+    }
+
+    registerForm.hidden = false;
+    scanStatus.textContent = "기본 정보를 입력한 뒤 저장해주세요.";
+  } catch (error) {
+    scanStatus.textContent = error.message;
+  }
 }
 
 async function scanStudentCard() {
@@ -92,21 +153,7 @@ async function scanStudentCard() {
         finishScan();
         scanStatus.textContent = "학생증 등록 여부를 확인하는 중입니다...";
 
-        try {
-          const result = await checkStudent(event.serialNumber);
-          scannedSerialNumber = event.serialNumber;
-          if (result.exists) {
-            showStudent(result.student);
-            scanStatus.textContent = "등록된 학생증입니다.";
-            return;
-          }
-
-          serialInput.value = event.serialNumber;
-          registerForm.hidden = false;
-          scanStatus.textContent = "기본 정보를 입력한 뒤 저장해주세요.";
-        } catch (error) {
-          scanStatus.textContent = error.message;
-        }
+        await handleStudentIdentifier(event.serialNumber);
       },
       { once: true },
     );
@@ -137,11 +184,12 @@ registerForm.addEventListener("submit", async (event) => {
       method: "POST",
       body: new FormData(registerForm),
     });
-    const result = await response.json();
+    const result = await readResponse(response);
     if (!response.ok) throw new Error(result.detail || "저장하지 못했습니다.");
 
     registerForm.hidden = true;
     showStudent(result.student);
+    updateStudentList(result.student);
     scanStatus.textContent = "학생 정보가 저장되었습니다.";
   } catch (error) {
     registerStatus.textContent = error.message;
@@ -164,10 +212,11 @@ chargeForm.addEventListener("submit", async (event) => {
         body: new FormData(chargeForm),
       },
     );
-    const result = await response.json();
+    const result = await readResponse(response);
     if (!response.ok) throw new Error(result.detail || "충전하지 못했습니다.");
 
     showStudent(result.student);
+    updateStudentList(result.student);
     chargeForm.reset();
     chargeStatus.textContent = "충전이 완료되었습니다.";
     scanStatus.textContent = "학생증을 인식했습니다.";
@@ -179,3 +228,19 @@ chargeForm.addEventListener("submit", async (event) => {
 });
 
 scanButton.addEventListener("click", scanStudentCard);
+
+serialLookupForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submitButton = serialLookupForm.querySelector("button[type='submit']");
+  submitButton.disabled = true;
+  await handleStudentIdentifier(serialNumberInput.value);
+  submitButton.disabled = false;
+});
+
+async function readResponse(response) {
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) return response.json();
+
+  const message = await response.text();
+  return { detail: message || "서버에서 응답을 받지 못했습니다." };
+}
