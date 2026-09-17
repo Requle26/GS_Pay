@@ -17,7 +17,7 @@ source .venv/bin/activate
 uvicorn app.main:app --reload --env-file .env
 ```
 
-브라우저에서 http://127.0.0.1:8000 을 열면 됩니다. API 문서는 http://127.0.0.1:8000/docs 에서 확인할 수 있습니다.
+브라우저에서 http://127.0.0.1:8000 을 열면 됩니다. API 문서는 로컬에서 `ENABLE_DOCS=true`로 켠 뒤 http://127.0.0.1:8000/docs 에서 확인할 수 있습니다.
 
 ## 관리자 로그인 설정
 
@@ -25,4 +25,4 @@ uvicorn app.main:app --reload --env-file .env
 2. Supabase Authentication에서 관리자 이메일·비밀번호 계정을 만듭니다.
 3. 해당 Auth 사용자 UUID와 같은 값을 `admins.id`에 저장하고, `status`를 `ACTIVE`로 설정합니다.
 
-Vercel에는 `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`를 환경 변수로 추가합니다. 운영 환경에서는 `COOKIE_SECURE=true`를 사용합니다.
+Vercel에는 `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`를 환경 변수로 추가합니다. 운영 환경에서는 `COOKIE_SECURE=true`를 사용하고, 배포 도메인을 `ALLOWED_ORIGINS`에 넣습니다.

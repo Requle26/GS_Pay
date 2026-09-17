@@ -2,4 +2,5 @@ fastapi==0.141.1
 uvicorn[standard]==0.53.0
 Jinja2==3.1.6
 python-multipart==0.0.32
-supabase
+supabase==2.31.0
+httpx==0.28.1

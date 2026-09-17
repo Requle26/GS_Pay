@@ -1,28 +1,42 @@
 from pathlib import Path
 import logging
+import os
 
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from app.auth import (
     ADMIN_COOKIE_NAME,
     get_auth_client,
     get_current_admin,
+    revoke_access_token,
     use_secure_cookie,
 )
 from app.database import get_supabase
+from app.security import (
+    MAX_CHARGE_AMOUNT,
+    enforce_same_origin,
+    server_error,
+    validate_balance_value,
+    validate_charge_amount,
+    validate_menu_price,
+)
 
 
 
 BASE_DIR = Path(__file__).resolve().parent
 
-app = FastAPI(title="GS Pay")
+_enable_docs = os.getenv("ENABLE_DOCS", "false").lower() in {"1", "true", "yes"}
+app = FastAPI(
+    title="GS Pay",
+    docs_url="/docs" if _enable_docs else None,
+    redoc_url="/redoc" if _enable_docs else None,
+    openapi_url="/openapi.json" if _enable_docs else None,
+)
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 logger = logging.getLogger(__name__)
-
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 ROLE_DASHBOARD_URLS = {
     "ADMIN": "/admin",
@@ -39,6 +53,15 @@ STUDENT_LIST_COLUMNS = [
     "created_at",
     "updated_at",
 ]
+
+
+@app.middleware("http")
+async def csrf_origin_middleware(request: Request, call_next):
+    try:
+        enforce_same_origin(request)
+    except HTTPException as exc:
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    return await call_next(request)
 
 
 def get_dashboard_url(admin: dict) -> str:
@@ -197,7 +220,11 @@ def login(
 
 
 @app.post("/logout", name="logout")
-def logout():
+def logout(request: Request):
+    access_token = request.cookies.get(ADMIN_COOKIE_NAME)
+    if access_token:
+        revoke_access_token(access_token)
+
     response = RedirectResponse(url="/", status_code=303)
     response.delete_cookie(
         key=ADMIN_COOKIE_NAME,
@@ -287,6 +314,7 @@ def create_booth_menu(
         raise HTTPException(status_code=400, detail="메뉴 이름은 필수입니다.")
     if price is None or price <= 0:
         raise HTTPException(status_code=400, detail="메뉴 가격은 1원 이상이어야 합니다.")
+    validate_menu_price(price)
 
     response = (
         get_supabase()
@@ -317,6 +345,7 @@ def update_booth_menu(
         raise HTTPException(status_code=400, detail="메뉴 이름은 필수입니다.")
     if price is None or price <= 0:
         raise HTTPException(status_code=400, detail="메뉴 가격은 1원 이상이어야 합니다.")
+    validate_menu_price(price)
 
     response = (
         get_supabase()
@@ -426,7 +455,7 @@ def pay_booth_menu(
         get_supabase().table("students").update(
             {"balance": current_balance}
         ).eq("id", student["id"]).eq("balance", balance_after).execute()
-        raise HTTPException(status_code=500, detail=f"결제 내역을 저장하지 못했습니다: {error}") from error
+        raise server_error("결제 내역을 저장하지 못했습니다.") from error
 
     return {
         "menu": menu_response.data[0],
@@ -520,7 +549,7 @@ def get_card_transactions(serial_number: str):
     transactions_response = (
         get_supabase()
         .table("transactions")
-        .select("type, amount, balance_after, description, created_at")
+        .select("type, amount, balance_after, created_at")
         .eq("student_id", student_response.data[0]["id"])
         .order("created_at", desc=True)
         .limit(20)
@@ -577,6 +606,9 @@ def create_exchange_student(
         raise HTTPException(status_code=400, detail="학생증, 학번, 이름은 필수입니다.")
     if amount is None or amount < 0:
         raise HTTPException(status_code=400, detail="충전 금액은 0원 이상이어야 합니다.")
+    if amount > 0:
+        validate_charge_amount(amount)
+    validate_balance_value(amount)
 
     try:
         existing_response = (
@@ -608,10 +640,7 @@ def create_exchange_student(
         raise
     except Exception as error:
         logger.exception("Student registration failed")
-        raise HTTPException(
-            status_code=500,
-            detail=f"학생 정보를 저장하지 못했습니다: {error}",
-        ) from error
+        raise server_error("학생 정보를 저장하지 못했습니다.") from error
     if not insert_response.data:
         raise HTTPException(status_code=500, detail="학생 정보를 저장하지 못했습니다.")
 
@@ -636,10 +665,7 @@ def create_exchange_student(
                 get_supabase().table("students").delete().eq("id", student_id).execute()
             except Exception:
                 logger.exception("Student rollback after transaction failure failed")
-            raise HTTPException(
-                status_code=500,
-                detail=f"충전 거래 내역을 저장하지 못했습니다: {error}",
-            ) from error
+            raise server_error("충전 거래 내역을 저장하지 못했습니다.") from error
 
     student = {
         column: value for column, value in student_record.items()
@@ -658,6 +684,7 @@ def charge_exchange_student(
     serial_number = serial_number.strip()
     if amount is None or amount <= 0:
         raise HTTPException(status_code=400, detail="충전 금액은 1원 이상이어야 합니다.")
+    validate_charge_amount(amount)
 
     try:
         student_response = (
@@ -671,10 +698,7 @@ def charge_exchange_student(
         )
     except Exception as error:
         logger.exception("Student lookup before charge failed")
-        raise HTTPException(
-            status_code=500,
-            detail=f"학생 잔액을 확인하지 못했습니다: {error}",
-        ) from error
+        raise server_error("학생 잔액을 확인하지 못했습니다.") from error
 
     if not student_response.data:
         raise HTTPException(status_code=404, detail="등록된 학생증이 아닙니다.")
@@ -687,6 +711,8 @@ def charge_exchange_student(
         current_balance = int(student.get("balance") or 0)
     except (TypeError, ValueError) as error:
         raise HTTPException(status_code=500, detail="현재 잔액 형식이 올바르지 않습니다.") from error
+
+    validate_balance_value(current_balance + amount)
 
     try:
         update_response = (
@@ -701,10 +727,7 @@ def charge_exchange_student(
         )
     except Exception as error:
         logger.exception("Student charge update failed")
-        raise HTTPException(
-            status_code=500,
-            detail=f"충전 정보를 저장하지 못했습니다: {error}",
-        ) from error
+        raise server_error("충전 정보를 저장하지 못했습니다.") from error
 
     if not update_response.data:
         raise HTTPException(
@@ -730,10 +753,7 @@ def charge_exchange_student(
             ).eq("id", student_id).eq("balance", updated_balance).execute()
         except Exception:
             logger.exception("Balance rollback after transaction failure failed")
-        raise HTTPException(
-            status_code=500,
-            detail=f"충전 거래 내역을 저장하지 못했습니다: {error}",
-        ) from error
+        raise server_error("충전 거래 내역을 저장하지 못했습니다.") from error
 
     updated_student = {
         column: value
@@ -755,6 +775,7 @@ def update_exchange_student_balance(
         raise HTTPException(status_code=400, detail="시리얼 번호를 입력해주세요.")
     if balance is None or balance < 0:
         raise HTTPException(status_code=400, detail="잔액은 0원 이상이어야 합니다.")
+    validate_balance_value(balance)
 
     try:
         student_response = (
@@ -768,10 +789,7 @@ def update_exchange_student_balance(
         )
     except Exception as error:
         logger.exception("Student lookup before balance adjustment failed")
-        raise HTTPException(
-            status_code=500,
-            detail=f"학생 잔액을 확인하지 못했습니다: {error}",
-        ) from error
+        raise server_error("학생 잔액을 확인하지 못했습니다.") from error
 
     if not student_response.data:
         raise HTTPException(status_code=404, detail="등록된 학생증이 아닙니다.")
@@ -787,6 +805,11 @@ def update_exchange_student_balance(
         raise HTTPException(status_code=400, detail="현재 잔액과 다른 금액을 입력해주세요.")
 
     balance_delta = balance - current_balance
+    if abs(balance_delta) > MAX_CHARGE_AMOUNT:
+        raise HTTPException(
+            status_code=400,
+            detail=f"1회 잔액 조정 한도는 {MAX_CHARGE_AMOUNT:,}원입니다.",
+        )
     try:
         update_response = (
             get_supabase()
@@ -800,10 +823,7 @@ def update_exchange_student_balance(
         )
     except Exception as error:
         logger.exception("Student balance adjustment failed")
-        raise HTTPException(
-            status_code=500,
-            detail=f"잔액을 수정하지 못했습니다: {error}",
-        ) from error
+        raise server_error("잔액을 수정하지 못했습니다.") from error
 
     if not update_response.data:
         raise HTTPException(
@@ -828,10 +848,7 @@ def update_exchange_student_balance(
             ).eq("id", student_id).eq("balance", balance).execute()
         except Exception:
             logger.exception("Balance rollback after adjustment transaction failure failed")
-        raise HTTPException(
-            status_code=500,
-            detail=f"잔액 수정 거래 내역을 저장하지 못했습니다: {error}",
-        ) from error
+        raise server_error("잔액 수정 거래 내역을 저장하지 못했습니다.") from error
 
     updated_student = {
         column: value
@@ -868,10 +885,7 @@ def update_exchange_student_profile(
         )
     except Exception as error:
         logger.exception("Student lookup before profile update failed")
-        raise HTTPException(
-            status_code=500,
-            detail=f"학생 정보를 확인하지 못했습니다: {error}",
-        ) from error
+        raise server_error("학생 정보를 확인하지 못했습니다.") from error
 
     if not student_response.data:
         raise HTTPException(status_code=404, detail="등록된 학생증이 아닙니다.")
@@ -893,10 +907,7 @@ def update_exchange_student_profile(
         )
     except Exception as error:
         logger.exception("Student profile update failed")
-        raise HTTPException(
-            status_code=500,
-            detail=f"학생 정보를 수정하지 못했습니다: {error}",
-        ) from error
+        raise server_error("학생 정보를 수정하지 못했습니다.") from error
 
     if not update_response.data:
         raise HTTPException(status_code=500, detail="학생 정보가 수정되지 않았습니다.")
@@ -928,10 +939,7 @@ def suspend_exchange_student(serial_number: str, request: Request):
         )
     except Exception as error:
         logger.exception("Student suspension failed")
-        raise HTTPException(
-            status_code=500,
-            detail=f"학생증 이용 정지에 실패했습니다: {error}",
-        ) from error
+        raise server_error("학생증 이용 정지에 실패했습니다.") from error
 
     if not update_response.data:
         student_response = (
@@ -973,10 +981,7 @@ def unsuspend_exchange_student(serial_number: str, request: Request):
         )
     except Exception as error:
         logger.exception("Student unsuspension failed")
-        raise HTTPException(
-            status_code=500,
-            detail=f"학생증 이용 정지 해제에 실패했습니다: {error}",
-        ) from error
+        raise server_error("학생증 이용 정지 해제에 실패했습니다.") from error
 
     if not update_response.data:
         student_response = (

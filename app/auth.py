@@ -1,8 +1,10 @@
 """Authentication helpers for administrator-only routes."""
 
+import logging
 import os
 from typing import Any
 
+import httpx
 from fastapi import Request
 from supabase import create_client
 
@@ -10,6 +12,7 @@ from app.database import get_supabase
 
 
 ADMIN_COOKIE_NAME = "gs_pay_admin_token"
+logger = logging.getLogger(__name__)
 
 
 def get_auth_client():
@@ -18,6 +21,20 @@ def get_auth_client():
         os.environ["SUPABASE_URL"],
         os.environ["SUPABASE_PUBLISHABLE_KEY"],
     )
+
+
+def revoke_access_token(access_token: str) -> None:
+    """Invalidate a Supabase Auth access token on logout."""
+    url = os.environ["SUPABASE_URL"].rstrip("/") + "/auth/v1/logout"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "apikey": os.environ["SUPABASE_PUBLISHABLE_KEY"],
+    }
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            client.post(url, headers=headers, params={"scope": "global"})
+    except Exception:
+        logger.exception("Failed to revoke Supabase session on logout")
 
 
 def get_current_admin(request: Request) -> dict[str, Any] | None:

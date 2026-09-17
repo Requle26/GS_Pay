@@ -88,7 +88,7 @@ function showTransactions(transactions) {
     const type = document.createElement("strong");
     type.textContent = formatTransactionType(transaction.type);
     const description = document.createElement("span");
-    description.textContent = transaction.description || "거래 내역";
+    description.textContent = transaction.description || "이용 내역";
     const date = document.createElement("time");
     date.dateTime = transaction.created_at || "";
     date.textContent = formatTransactionDate(transaction.created_at);
