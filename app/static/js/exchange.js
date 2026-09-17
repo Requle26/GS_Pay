@@ -4,11 +4,21 @@ const existingStudent = document.querySelector("#existing-student");
 const existingStudentFields = document.querySelector(
   "#existing-student-fields",
 );
+const profileForm = document.querySelector("#student-profile-form");
+const studentNumberInput = document.querySelector("#student-number-input");
+const studentNameInput = document.querySelector("#student-name-input");
+const profileStatus = document.querySelector("#student-profile-status");
 const registerForm = document.querySelector("#student-register-form");
 const registerStatus = document.querySelector("#student-register-status");
 const serialInput = document.querySelector("#student-nfc-serial");
 const chargeForm = document.querySelector("#student-charge-form");
 const chargeStatus = document.querySelector("#student-charge-status");
+const balanceForm = document.querySelector("#student-balance-form");
+const balanceInput = document.querySelector("#student-balance-input");
+const balanceStatus = document.querySelector("#student-balance-status");
+const suspendButton = document.querySelector("#student-suspend-button");
+const unsuspendButton = document.querySelector("#student-unsuspend-button");
+const suspendStatus = document.querySelector("#student-suspend-status");
 const serialLookupForm = document.querySelector("#serial-lookup-form");
 const serialNumberInput = document.querySelector("#serial-number-input");
 const studentTableBody = document.querySelector("#student-table-body");
@@ -39,7 +49,12 @@ function resetStudentResult() {
   chargeForm.hidden = false;
   existingStudentFields.replaceChildren();
   registerStatus.textContent = "";
+  profileStatus.textContent = "";
   chargeStatus.textContent = "";
+  balanceStatus.textContent = "";
+  suspendStatus.textContent = "";
+  suspendButton.hidden = true;
+  unsuspendButton.hidden = true;
 }
 
 function showStudent(student, canCharge = true) {
@@ -55,6 +70,15 @@ function showStudent(student, canCharge = true) {
     existingStudentFields.append(term, detail);
   });
   chargeForm.hidden = !canCharge;
+  balanceForm.hidden = !canCharge;
+  profileForm.hidden = false;
+  suspendButton.hidden = !canCharge;
+  unsuspendButton.hidden = canCharge;
+  studentNumberInput.value = student.student_number ?? "";
+  studentNameInput.value = student.name ?? "";
+  if (student.balance !== null && student.balance !== undefined) {
+    balanceInput.value = student.balance;
+  }
   existingStudent.hidden = false;
 }
 
@@ -224,6 +248,114 @@ chargeForm.addEventListener("submit", async (event) => {
     chargeStatus.textContent = error.message;
   } finally {
     submitButton.disabled = false;
+  }
+});
+
+balanceForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submitButton = balanceForm.querySelector("button[type='submit']");
+  submitButton.disabled = true;
+  balanceStatus.textContent = "수정 중입니다...";
+
+  try {
+    const response = await fetch(
+      `/api/exchange/students/${encodeURIComponent(scannedSerialNumber)}/balance`,
+      {
+        method: "POST",
+        body: new FormData(balanceForm),
+      },
+    );
+    const result = await readResponse(response);
+    if (!response.ok)
+      throw new Error(result.detail || "잔액을 수정하지 못했습니다.");
+
+    showStudent(result.student);
+    updateStudentList(result.student);
+    balanceStatus.textContent = "잔액이 수정되었습니다.";
+    scanStatus.textContent = "학생증 정보를 갱신했습니다.";
+  } catch (error) {
+    balanceStatus.textContent = error.message;
+  } finally {
+    submitButton.disabled = false;
+  }
+});
+
+profileForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const submitButton = profileForm.querySelector("button[type='submit']");
+  submitButton.disabled = true;
+  profileStatus.textContent = "수정 중입니다...";
+
+  try {
+    const response = await fetch(
+      `/api/exchange/students/${encodeURIComponent(scannedSerialNumber)}/profile`,
+      {
+        method: "POST",
+        body: new FormData(profileForm),
+      },
+    );
+    const result = await readResponse(response);
+    if (!response.ok)
+      throw new Error(result.detail || "학생 정보를 수정하지 못했습니다.");
+
+    showStudent(result.student);
+    updateStudentList(result.student);
+    profileStatus.textContent = "학생 정보가 수정되었습니다.";
+    scanStatus.textContent = "학생증 정보를 갱신했습니다.";
+  } catch (error) {
+    profileStatus.textContent = error.message;
+  } finally {
+    submitButton.disabled = false;
+  }
+});
+
+suspendButton.addEventListener("click", async () => {
+  if (!window.confirm("이 학생증의 이용을 정지하시겠습니까?")) return;
+
+  suspendButton.disabled = true;
+  suspendStatus.textContent = "정지 처리 중입니다...";
+
+  try {
+    const response = await fetch(
+      `/api/exchange/students/${encodeURIComponent(scannedSerialNumber)}/suspend`,
+      { method: "POST" },
+    );
+    const result = await readResponse(response);
+    if (!response.ok)
+      throw new Error(result.detail || "이용 정지에 실패했습니다.");
+
+    showStudent(result.student, false);
+    updateStudentList(result.student);
+    suspendStatus.textContent = "이용이 정지되었습니다.";
+    scanStatus.textContent = "정지된 학생증입니다.";
+  } catch (error) {
+    suspendStatus.textContent = error.message;
+    suspendButton.disabled = false;
+  }
+});
+
+unsuspendButton.addEventListener("click", async () => {
+  if (!window.confirm("이 학생증의 이용 정지를 해제하시겠습니까?")) return;
+
+  unsuspendButton.disabled = true;
+  suspendStatus.textContent = "정지 해제 처리 중입니다...";
+
+  try {
+    const response = await fetch(
+      `/api/exchange/students/${encodeURIComponent(scannedSerialNumber)}/unsuspend`,
+      { method: "POST" },
+    );
+    const result = await readResponse(response);
+    if (!response.ok)
+      throw new Error(result.detail || "이용 정지 해제에 실패했습니다.");
+
+    showStudent(result.student, true);
+    updateStudentList(result.student);
+    suspendStatus.textContent = "이용 정지가 해제되었습니다.";
+    scanStatus.textContent = "학생증을 다시 사용할 수 있습니다.";
+  } catch (error) {
+    suspendStatus.textContent = error.message;
+    unsuspendButton.disabled = false;
   }
 });
 

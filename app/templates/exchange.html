@@ -45,6 +45,27 @@
         <div id="existing-student" class="student-result" hidden>
           <p class="result-title">이미 등록된 학생증입니다.</p>
           <dl id="existing-student-fields" class="student-fields"></dl>
+          <form id="student-profile-form" class="student-profile-form">
+            <label>
+              학번
+              <input
+                id="student-number-input"
+                name="student_number"
+                type="text"
+                required
+              />
+            </label>
+            <label>
+              이름
+              <input id="student-name-input" name="name" type="text" required />
+            </label>
+            <button type="submit">학생 정보 수정</button>
+            <p
+              id="student-profile-status"
+              class="scan-status"
+              aria-live="polite"
+            ></p>
+          </form>
           <form id="student-charge-form" class="student-charge-form">
             <label>
               충전 금액
@@ -64,6 +85,45 @@
               aria-live="polite"
             ></p>
           </form>
+          <form id="student-balance-form" class="student-charge-form">
+            <label>
+              수정할 잔액
+              <input
+                id="student-balance-input"
+                name="balance"
+                type="number"
+                min="0"
+                step="100"
+                required
+              />
+            </label>
+            <button type="submit">잔액 수정</button>
+            <p
+              id="student-balance-status"
+              class="scan-status"
+              aria-live="polite"
+            ></p>
+          </form>
+          <button
+            id="student-suspend-button"
+            class="student-suspend-button"
+            type="button"
+          >
+            이용 정지
+          </button>
+          <button
+            id="student-unsuspend-button"
+            class="student-unsuspend-button"
+            type="button"
+            hidden
+          >
+            이용 정지 해제
+          </button>
+          <p
+            id="student-suspend-status"
+            class="scan-status"
+            aria-live="polite"
+          ></p>
         </div>
 
         <form id="student-register-form" class="student-register-form" hidden>

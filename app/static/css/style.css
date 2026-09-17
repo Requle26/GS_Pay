@@ -306,19 +306,23 @@ body {
 }
 
 .exchange-result-panel {
-  height: 330px;
+  min-height: 560px;
   margin-top: 20px;
-  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
 }
 
 .student-result,
 .student-register-form {
+  width: min(100%, 520px);
   max-width: 520px;
-  margin-top: 20px;
+  margin: 20px auto 0;
   padding: 20px;
   background: #f4fcfa;
   border: 1px solid #dcebe7;
   border-radius: 12px;
+  text-align: center;
 }
 
 .result-title {
@@ -333,6 +337,7 @@ body {
   gap: 10px 16px;
   margin: 0;
   font-size: 0.92rem;
+  text-align: left;
 }
 
 .student-fields dt {
@@ -345,9 +350,54 @@ body {
   overflow-wrap: anywhere;
 }
 
+.student-profile-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 1px solid #dcebe7;
+  text-align: left;
+}
+
+.student-profile-form label {
+  display: grid;
+  gap: 6px;
+  color: #35403d;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.student-profile-form input {
+  width: 100%;
+  padding: 11px 12px;
+  font: inherit;
+  border: 1px solid #c9d4d1;
+  border-radius: 8px;
+}
+
+.student-profile-form button {
+  padding: 12px;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  background: #087e68;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.student-profile-form button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
 .student-register-form {
   display: grid;
   gap: 14px;
+}
+
+.student-register-form .result-title {
+  text-align: center;
 }
 
 .student-charge-form {
@@ -388,6 +438,42 @@ body {
 }
 
 .student-charge-form button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.student-suspend-button {
+  width: 100%;
+  margin-top: 22px;
+  padding: 12px;
+  color: #b42318;
+  font: inherit;
+  font-weight: 700;
+  background: #fff0ef;
+  border: 1px solid #f0aaa4;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.student-suspend-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.student-unsuspend-button {
+  width: 100%;
+  margin-top: 22px;
+  padding: 12px;
+  color: #087e68;
+  font: inherit;
+  font-weight: 700;
+  background: #e9faf6;
+  border: 1px solid #9bd8cb;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.student-unsuspend-button:disabled {
   opacity: 0.65;
   cursor: wait;
 }
@@ -671,7 +757,7 @@ footer {
     grid-template-columns: 1fr;
   }
   .exchange-result-panel {
-    height: 430px;
+    min-height: 620px;
   }
   .student-charge-form {
     grid-template-columns: 1fr;
