@@ -22,6 +22,8 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 logger = logging.getLogger(__name__)
 
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 ROLE_DASHBOARD_URLS = {
     "ADMIN": "/admin",
     "BOOTH": "/booth",
