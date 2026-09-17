@@ -20,6 +20,10 @@
     <p class="description">학생증을 인식하면 잔액이 표시됩니다.</p>
 
     <section class="balance-card" aria-live="polite" aria-atomic="true">
+      <div id="student-identity" class="student-identity" hidden>
+        <p id="student-name" class="student-name"></p>
+        <p id="student-number" class="student-number"></p>
+      </div>
       <p class="balance-label">현재 잔액</p>
       <p id="balance-value" class="balance-value">-</p>
       <p id="result-message" class="result-message" hidden></p>

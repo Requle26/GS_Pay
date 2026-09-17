@@ -62,6 +62,39 @@ def get_exchange_admin(request: Request) -> dict:
     return admin
 
 
+def get_booth_admin(request: Request) -> dict:
+    admin = get_current_admin(request)
+    if (
+        admin is None
+        or str(admin.get("role", "")).upper() != "BOOTH"
+        or not admin.get("booth_id")
+    ):
+        raise HTTPException(status_code=403, detail="Booth permission required")
+    return admin
+
+
+@app.get("/api/booth/sales")
+def get_booth_sales(request: Request):
+    admin = get_booth_admin(request)
+    response = (
+        get_supabase()
+        .table("transactions")
+        .select("id, amount, balance_after, description, created_at")
+        .eq("booth_id", admin["booth_id"])
+        .eq("type", "SPEND")
+        .order("created_at", desc=True)
+        .limit(100)
+        .execute()
+    )
+    transactions = response.data or []
+    total_sales = sum(int(transaction.get("amount") or 0) for transaction in transactions)
+    return {
+        "total_sales": total_sales,
+        "transaction_count": len(transactions),
+        "transactions": transactions,
+    }
+
+
 def insert_transaction(
     admin: dict,
     student_id: str,
@@ -188,15 +221,215 @@ def admin_dashboard(request: Request):
 
 @app.get("/booth", name="booth_dashboard")
 def booth_dashboard(request: Request):
-    booth, redirect = require_role(request, "BOOTH")
-    if redirect:
-        return redirect
+    booth = get_current_admin(request)
+    if booth is None:
+        return RedirectResponse(url="/login", status_code=303)
+    if str(booth.get("role", "")).upper() != "BOOTH":
+        return RedirectResponse(url=get_dashboard_url(booth), status_code=303)
+
+    booth_record = {
+        "id": booth["booth_id"],
+        "name": "부스",
+        "status": "ACTIVE",
+    }
+    menus = []
+    booth_load_error = None
+    try:
+        booth_response = (
+            get_supabase()
+            .table("booths")
+            .select("id, name, status")
+            .eq("id", booth["booth_id"])
+            .limit(1)
+            .execute()
+        )
+        if booth_response.data:
+            booth_record = booth_response.data[0]
+
+        menus_response = (
+            get_supabase()
+            .table("menus")
+            .select("id, name, price, status")
+            .eq("booth_id", booth["booth_id"])
+            .eq("status", "ACTIVE")
+            .order("created_at")
+            .execute()
+        )
+        menus = menus_response.data or []
+    except Exception as error:
+        logger.exception("Booth dashboard data loading failed")
+        booth_load_error = "부스 데이터를 불러오지 못했습니다. Supabase 권한을 확인해주세요."
 
     return templates.TemplateResponse(
         request=request,
         name="booth.html",
-        context={"title": "부스 운영 페이지", "admin": booth},
+        context={
+            "title": "부스 운영 페이지",
+            "admin": booth,
+            "booth": booth_record,
+            "menus": menus,
+            "booth_load_error": booth_load_error,
+        },
     )
+
+
+@app.post("/api/booth/menus")
+def create_booth_menu(
+    request: Request,
+    name: str | None = Form(default=None),
+    price: int | None = Form(default=None),
+):
+    admin = get_booth_admin(request)
+    name = (name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="메뉴 이름은 필수입니다.")
+    if price is None or price <= 0:
+        raise HTTPException(status_code=400, detail="메뉴 가격은 1원 이상이어야 합니다.")
+
+    response = (
+        get_supabase()
+        .table("menus")
+        .insert({
+            "booth_id": admin["booth_id"],
+            "name": name,
+            "price": price,
+            "status": "ACTIVE",
+        })
+        .execute()
+    )
+    if not response.data:
+        raise HTTPException(status_code=500, detail="메뉴를 추가하지 못했습니다.")
+    return {"menu": response.data[0]}
+
+
+@app.post("/api/booth/menus/{menu_id}")
+def update_booth_menu(
+    menu_id: str,
+    request: Request,
+    name: str | None = Form(default=None),
+    price: int | None = Form(default=None),
+):
+    admin = get_booth_admin(request)
+    name = (name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="메뉴 이름은 필수입니다.")
+    if price is None or price <= 0:
+        raise HTTPException(status_code=400, detail="메뉴 가격은 1원 이상이어야 합니다.")
+
+    response = (
+        get_supabase()
+        .table("menus")
+        .update({"name": name, "price": price})
+        .eq("id", menu_id)
+        .eq("booth_id", admin["booth_id"])
+        .select("id, booth_id, name, price, status")
+        .execute()
+    )
+    if not response.data:
+        raise HTTPException(status_code=404, detail="메뉴를 찾을 수 없습니다.")
+    return {"menu": response.data[0]}
+
+
+@app.post("/api/booth/menus/{menu_id}/delete")
+def delete_booth_menu(menu_id: str, request: Request):
+    admin = get_booth_admin(request)
+    response = (
+        get_supabase()
+        .table("menus")
+        .delete()
+        .eq("id", menu_id)
+        .eq("booth_id", admin["booth_id"])
+        .select("id")
+        .execute()
+    )
+    if not response.data:
+        raise HTTPException(status_code=404, detail="메뉴를 찾을 수 없습니다.")
+    return {"deleted": True, "menu_id": menu_id}
+
+
+@app.post("/api/booth/menus/{menu_id}/pay")
+def pay_booth_menu(
+    menu_id: str,
+    request: Request,
+    nfc_serial: str | None = Form(default=None),
+):
+    admin = get_booth_admin(request)
+    nfc_serial = (nfc_serial or "").strip()
+    if not nfc_serial:
+        raise HTTPException(status_code=400, detail="학생증을 인식해주세요.")
+
+    menu_response = (
+        get_supabase()
+        .table("menus")
+        .select("id, booth_id, name, price, status")
+        .eq("id", menu_id)
+        .eq("booth_id", admin["booth_id"])
+        .eq("status", "ACTIVE")
+        .limit(1)
+        .execute()
+    )
+    if not menu_response.data:
+        raise HTTPException(status_code=404, detail="판매 중인 메뉴가 아닙니다.")
+
+    student_response = (
+        get_supabase()
+        .table("students")
+        .select("id, name, balance, status")
+        .eq("nfc_serial", nfc_serial)
+        .limit(1)
+        .execute()
+    )
+    if not student_response.data:
+        raise HTTPException(status_code=404, detail="등록되지 않은 학생증입니다.")
+
+    student = student_response.data[0]
+    if str(student.get("status", "")).upper() == "SUSPEND":
+        raise HTTPException(status_code=403, detail="이용 정지된 학생증입니다.")
+    if str(student.get("status", "")).upper() != "ACTIVE":
+        raise HTTPException(status_code=403, detail="사용할 수 없는 학생증입니다.")
+
+    price = int(menu_response.data[0]["price"])
+    current_balance = int(student.get("balance") or 0)
+    if current_balance < price:
+        raise HTTPException(
+            status_code=409,
+            detail=f"잔액이 부족합니다. 현재 잔액: {current_balance:,}원",
+        )
+
+    balance_after = current_balance - price
+    update_response = (
+        get_supabase()
+        .table("students")
+        .update({"balance": balance_after})
+        .eq("id", student["id"])
+        .eq("status", "ACTIVE")
+        .eq("balance", current_balance)
+        .select("id, name, balance, status")
+        .execute()
+    )
+    if not update_response.data:
+        raise HTTPException(status_code=409, detail="잔액이 변경되었습니다. 다시 결제해주세요.")
+
+    try:
+        insert_transaction(
+            admin=admin,
+            student_id=str(student["id"]),
+            transaction_type="SPEND",
+            amount=price,
+            balance_after=balance_after,
+            description=f"{menu_response.data[0]['name']} 결제",
+        )
+    except Exception as error:
+        logger.exception("Booth payment transaction insert failed")
+        get_supabase().table("students").update(
+            {"balance": current_balance}
+        ).eq("id", student["id"]).eq("balance", balance_after).execute()
+        raise HTTPException(status_code=500, detail=f"결제 내역을 저장하지 못했습니다: {error}") from error
+
+    return {
+        "menu": menu_response.data[0],
+        "student": update_response.data[0],
+    }
 
 
 @app.get("/exchange", name="exchange_dashboard")
@@ -236,7 +469,7 @@ def get_card_balance(serial_number: str):
     response = (
         get_supabase()
         .table("students")
-        .select("balance, status")
+        .select("student_number, name, balance, status")
         .eq("nfc_serial", serial_number)
         .limit(1)
         .execute()
@@ -256,7 +489,12 @@ def get_card_balance(serial_number: str):
     if str(student.get("status", "")).upper() != "ACTIVE":
         raise HTTPException(status_code=403, detail="사용할 수 없는 학생증입니다.")
 
-    return {"balance": student["balance"], "status": student["status"]}
+    return {
+        "student_number": student["student_number"],
+        "name": student["name"],
+        "balance": student["balance"],
+        "status": student["status"],
+    }
 
 
 @app.get("/api/cards/{serial_number}/transactions")

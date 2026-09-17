@@ -2,6 +2,9 @@ const scanButton = document.querySelector("#scan-button");
 const scanStatus = document.querySelector("#scan-status");
 const balanceValue = document.querySelector("#balance-value");
 const resultMessage = document.querySelector("#result-message");
+const studentIdentity = document.querySelector("#student-identity");
+const studentName = document.querySelector("#student-name");
+const studentNumber = document.querySelector("#student-number");
 const transactionSection = document.querySelector("#transaction-section");
 const transactionList = document.querySelector("#transaction-list");
 const transactionEmpty = document.querySelector("#transaction-empty");
@@ -19,6 +22,7 @@ function showNotFound(message = "정보를 찾을 수 없습니다.") {
   balanceValue.textContent = "-";
   resultMessage.textContent = message;
   resultMessage.hidden = false;
+  studentIdentity.hidden = true;
   transactionSection.hidden = true;
   transactionList.replaceChildren();
 }
@@ -98,6 +102,12 @@ function showTransactions(transactions) {
   });
 }
 
+function showStudentIdentity(card) {
+  studentName.textContent = card.name || "이름 정보 없음";
+  studentNumber.textContent = `학번 ${card.student_number || "-"}`;
+  studentIdentity.hidden = false;
+}
+
 async function scanStudentCard() {
   resultMessage.hidden = true;
   scanStatus.textContent = "30초 안에 학생증을 NFC 리더기에 가까이 대주세요.";
@@ -153,6 +163,7 @@ async function scanStudentCard() {
           }
 
           balanceValue.textContent = `${Number(card.data.balance).toLocaleString("ko-KR")}원`;
+          showStudentIdentity(card.data);
           resultMessage.hidden = true;
           try {
             const transactions = await getTransactions(event.serialNumber);

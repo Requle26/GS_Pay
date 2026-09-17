@@ -63,8 +63,311 @@ body {
 
 .admin-auth-page {
   min-height: 100dvh;
-  padding: 32px;
-  background: #f4fcfa;
+  padding: 0 40px 72px;
+  background: #f7fbfa;
+}
+
+.booth-page {
+  min-height: 100dvh;
+  padding: 0 40px 80px;
+  background: #f7fbfa;
+}
+
+.booth-header {
+  width: min(100%, 1280px);
+  min-height: 84px;
+  margin: 0 auto;
+  border-bottom: 1px solid #dcebe7;
+}
+
+.booth-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.booth-role {
+  color: #087e68;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.booth-hero,
+.booth-content,
+.payment-panel {
+  width: min(100%, 1280px);
+  margin: 0 auto;
+}
+
+.booth-hero {
+  padding: 66px 0 54px;
+  border-bottom: 1px solid #dcebe7;
+}
+
+.booth-hero h1,
+.booth-section-heading h2,
+.payment-panel-heading h2 {
+  margin: 0;
+}
+
+.booth-hero h1 {
+  font-size: clamp(2.5rem, 6vw, 4.6rem);
+  letter-spacing: -3px;
+}
+
+.booth-hero > p:last-child {
+  margin: 14px 0 0;
+  color: #66716e;
+}
+
+.booth-error {
+  color: #b42318 !important;
+  font-weight: 700;
+}
+
+.booth-content {
+  padding-top: 50px;
+}
+
+.booth-section-heading,
+.payment-panel-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid #dcebe7;
+}
+
+.booth-section-heading {
+  flex-wrap: wrap;
+}
+
+.booth-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.booth-section-heading h2,
+.payment-panel-heading h2 {
+  font-size: 1.8rem;
+}
+
+.booth-primary-button,
+.booth-secondary-button,
+.menu-pay-button,
+.menu-edit-button,
+.menu-delete-button {
+  padding: 11px 16px;
+  font: inherit;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.booth-primary-button,
+.menu-pay-button {
+  color: #fff;
+  background: #07ad8c;
+  border: 1px solid #07ad8c;
+}
+
+.booth-secondary-button,
+.menu-edit-button {
+  color: #087e68;
+  background: transparent;
+  border: 1px solid #9bd8cb;
+}
+
+.menu-delete-button {
+  color: #b42318;
+  background: transparent;
+  border: 1px solid #f0aaa4;
+}
+
+.menu-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 180px auto;
+  align-items: end;
+  gap: 14px;
+  padding: 26px 0;
+  border-bottom: 1px solid #dcebe7;
+}
+
+.menu-form label {
+  display: grid;
+  gap: 7px;
+  color: #35403d;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.menu-form input {
+  width: 100%;
+  padding: 11px 12px;
+  font: inherit;
+  border: 1px solid #c9d4d1;
+  border-radius: 8px;
+}
+
+.menu-form-actions,
+.menu-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.booth-status {
+  min-height: 1.4em;
+  margin: 12px 0 0;
+  color: #66716e;
+}
+
+.menu-list {
+  display: grid;
+}
+
+.menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 0;
+  border-bottom: 1px solid #e4ece9;
+}
+
+.menu-info h3,
+.menu-info p {
+  margin: 0;
+}
+
+.menu-info h3 {
+  font-size: 1.15rem;
+}
+
+.menu-info p {
+  margin-top: 5px;
+  color: #087e68;
+  font-weight: 800;
+}
+
+.menu-empty {
+  padding: 38px 0;
+  color: #66716e;
+  text-align: center;
+}
+
+.payment-panel {
+  margin-top: 46px;
+  padding: 30px 0;
+  border-top: 2px solid #07ad8c;
+  border-bottom: 1px solid #dcebe7;
+}
+
+.payment-menu-name {
+  margin: 24px 0 16px;
+  color: #087e68;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.sales-panel {
+  width: min(100%, 1280px);
+  margin: 46px auto 0;
+  padding: 30px 0;
+  border-top: 2px solid #07ad8c;
+  border-bottom: 1px solid #dcebe7;
+}
+
+.sales-summary {
+  display: flex;
+  gap: 56px;
+  padding: 26px 0;
+  border-bottom: 1px solid #e4ece9;
+}
+
+.sales-summary div {
+  display: grid;
+  gap: 6px;
+}
+
+.sales-summary span {
+  color: #66716e;
+  font-size: 0.9rem;
+}
+
+.sales-summary strong {
+  color: #087e68;
+  font-size: 1.6rem;
+}
+
+.sales-list {
+  display: grid;
+}
+
+.sales-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 17px 0;
+  border-bottom: 1px solid #edf2f0;
+}
+
+.sales-detail {
+  display: grid;
+  gap: 4px;
+}
+
+.sales-detail time {
+  color: #777;
+  font-size: 0.82rem;
+}
+
+.sales-amount {
+  color: #b42318;
+  white-space: nowrap;
+}
+
+@media (max-width: 680px) {
+  .booth-page {
+    padding: 0 20px 56px;
+  }
+  .booth-header-actions {
+    gap: 10px;
+  }
+  .booth-role {
+    display: none;
+  }
+  .booth-hero {
+    padding: 48px 0 38px;
+  }
+  .booth-hero h1 {
+    letter-spacing: -2px;
+  }
+  .menu-form {
+    grid-template-columns: 1fr;
+  }
+  .booth-heading-actions {
+    width: 100%;
+  }
+  .menu-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .menu-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .payment-panel-heading {
+    align-items: flex-start;
+  }
+  .sales-summary {
+    gap: 28px;
+  }
 }
 
 .admin-brand {
@@ -84,6 +387,24 @@ body {
   border: 1px solid #dcebe7;
   border-radius: 22px;
   box-shadow: 0 14px 35px rgba(4, 92, 74, 0.11);
+}
+
+.admin-auth-page > .admin-header {
+  width: min(100%, 1280px);
+  min-height: 84px;
+  margin: 0 auto;
+  border-bottom: 1px solid #dcebe7;
+}
+
+.admin-auth-page > .admin-dashboard {
+  width: min(100%, 1280px);
+  margin: 0 auto;
+  padding: 64px 0 48px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #dcebe7;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .eyebrow {
@@ -162,12 +483,9 @@ body {
 
 .student-list {
   width: min(100%, 1100px);
-  margin: 32px auto 0;
-  padding: 28px;
-  background: #fff;
-  border: 1px solid #dcebe7;
-  border-radius: 16px;
-  box-shadow: 0 10px 25px rgba(4, 92, 74, 0.08);
+  margin: 0 auto;
+  padding: 52px 0 0;
+  background: transparent;
 }
 
 .student-list-heading {
@@ -230,8 +548,8 @@ body {
 }
 
 .exchange-scanner {
-  margin-bottom: 34px;
-  padding-bottom: 28px;
+  margin-bottom: 52px;
+  padding-bottom: 44px;
   border-bottom: 1px solid #e4ece9;
 }
 
@@ -251,10 +569,9 @@ body {
 .serial-lookup-card {
   max-width: 620px;
   margin-top: 22px;
-  padding: 18px 20px;
-  background: #f4fcfa;
-  border: 1px solid #cfe9e2;
-  border-radius: 12px;
+  padding: 18px 0;
+  background: transparent;
+  border-bottom: 1px solid #dcebe7;
 }
 
 .serial-lookup-title {
@@ -319,9 +636,9 @@ body {
   max-width: 520px;
   margin: 20px auto 0;
   padding: 20px;
-  background: #f4fcfa;
+  background: #fff;
   border: 1px solid #dcebe7;
-  border-radius: 12px;
+  border-radius: 8px;
   text-align: center;
 }
 
@@ -598,6 +915,27 @@ h1 em {
   box-shadow: 0 2px 9px rgba(0, 0, 0, 0.12);
 }
 
+.student-identity {
+  margin-bottom: 22px;
+}
+
+.student-name,
+.student-number {
+  margin: 0;
+}
+
+.student-name {
+  color: #222;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.student-number {
+  margin-top: 4px;
+  color: #777;
+  font-size: 0.9rem;
+}
+
 .transaction-section {
   margin-top: 20px;
   padding: 20px;
@@ -834,7 +1172,7 @@ footer {
     font-size: 0.9rem;
   }
   .admin-auth-page {
-    padding: 22px;
+    padding: 0 20px 48px;
   }
   .login-card,
   .admin-dashboard {
@@ -842,8 +1180,7 @@ footer {
     padding: 29px 24px;
   }
   .student-list {
-    margin-top: 22px;
-    padding: 22px 16px;
+    padding-top: 34px;
   }
   .serial-lookup-card {
     padding: 16px;

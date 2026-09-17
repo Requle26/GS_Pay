@@ -1,20 +1,162 @@
 {% extends "base.html" %} {% block content %}
-<main class="admin-auth-page">
-  <header class="admin-header">
+<main class="booth-page">
+  <header class="admin-header booth-header">
     <a class="admin-brand" href="/">GBSW_Pay</a>
-    <form method="post" action="/logout">
-      <button class="logout-button" type="submit">로그아웃</button>
-    </form>
+    <div class="booth-header-actions">
+      <span class="booth-role">BOOTH</span>
+      <form method="post" action="/logout">
+        <button class="logout-button" type="submit">로그아웃</button>
+      </form>
+    </div>
   </header>
-  <section class="admin-dashboard" aria-labelledby="booth-title">
-    <p class="eyebrow">
-      BOOTH{% if admin.booth_id %} · {{ admin.booth_id }}{% endif %}
+
+  <section class="booth-hero" aria-labelledby="booth-title">
+    <p class="eyebrow">BOOTH</p>
+    <h1 id="booth-title">{{ booth.name }}</h1>
+    <p>{{ admin.username }}님, 오늘의 판매를 시작하세요.</p>
+    {% if booth_load_error %}
+    <p class="booth-error" role="alert">{{ booth_load_error }}</p>
+    {% endif %}
+  </section>
+
+  <section class="booth-content" aria-labelledby="menu-title">
+    <div class="booth-section-heading">
+      <div>
+        <p class="eyebrow">MENU</p>
+        <h2 id="menu-title">판매 메뉴</h2>
+      </div>
+      <div class="booth-heading-actions">
+        <button id="menu-add-button" class="booth-primary-button" type="button">
+          메뉴 추가
+        </button>
+        <button id="sales-button" class="booth-secondary-button" type="button">
+          매출 확인
+        </button>
+      </div>
+    </div>
+
+    <form id="menu-form" class="menu-form" hidden>
+      <input id="menu-id" name="menu_id" type="hidden" />
+      <label>
+        메뉴 이름
+        <input id="menu-name" name="name" type="text" required />
+      </label>
+      <label>
+        가격
+        <input
+          id="menu-price"
+          name="price"
+          type="number"
+          min="1"
+          step="1"
+          inputmode="numeric"
+          placeholder="가격을 입력하세요"
+          required
+        />
+      </label>
+      <div class="menu-form-actions">
+        <button
+          id="menu-save-button"
+          class="booth-primary-button"
+          type="submit"
+        >
+          저장
+        </button>
+        <button
+          id="menu-cancel-button"
+          class="booth-secondary-button"
+          type="button"
+        >
+          취소
+        </button>
+      </div>
+      <p id="menu-form-status" class="booth-status" aria-live="polite"></p>
+    </form>
+
+    <div id="menu-list" class="menu-list">
+      {% for menu in menus %} {% if menu.status == "ACTIVE" %}
+      <article class="menu-row" data-menu-id="{{ menu.id }}">
+        <div class="menu-info">
+          <h3>{{ menu.name }}</h3>
+          <p>{{ "{:,}".format(menu.price) }}원</p>
+        </div>
+        <div class="menu-actions">
+          <button class="menu-pay-button" type="button">NFC 결제</button>
+          <button class="menu-edit-button" type="button">수정</button>
+          <button class="menu-delete-button" type="button">삭제</button>
+        </div>
+      </article>
+      {% endif %} {% endfor %}
+    </div>
+    <p id="menu-empty" class="menu-empty" {% if menus %}hidden{% endif %}>
+      등록된 메뉴가 없습니다.
     </p>
-    <h1 id="booth-title">{{ admin.username }}님, 안녕하세요.</h1>
-    <p>부스 운영 화면입니다.</p>
-    <p class="admin-note">
-      학생증 인식과 포인트 사용 기능을 이 화면에 추가합니다.
+  </section>
+
+  <section
+    id="sales-panel"
+    class="sales-panel"
+    hidden
+    aria-labelledby="sales-title"
+  >
+    <div class="payment-panel-heading">
+      <div>
+        <p class="eyebrow">SALES</p>
+        <h2 id="sales-title">부스 매출</h2>
+      </div>
+      <button
+        id="sales-close-button"
+        class="booth-secondary-button"
+        type="button"
+      >
+        닫기
+      </button>
+    </div>
+    <div class="sales-summary">
+      <div>
+        <span>총매출</span>
+        <strong id="sales-total">-</strong>
+      </div>
+      <div>
+        <span>거래 건수</span>
+        <strong id="sales-count">-</strong>
+      </div>
+    </div>
+    <div id="sales-list" class="sales-list"></div>
+    <p id="sales-empty" class="menu-empty" hidden>아직 결제 내역이 없습니다.</p>
+    <p id="sales-status" class="booth-status" aria-live="polite"></p>
+  </section>
+
+  <section
+    id="payment-panel"
+    class="payment-panel"
+    hidden
+    aria-labelledby="payment-title"
+  >
+    <div class="payment-panel-heading">
+      <div>
+        <p class="eyebrow">PAYMENT</p>
+        <h2 id="payment-title">학생증 결제</h2>
+      </div>
+      <button
+        id="payment-close-button"
+        class="booth-secondary-button"
+        type="button"
+      >
+        닫기
+      </button>
+    </div>
+    <p id="payment-menu-name" class="payment-menu-name"></p>
+    <button id="payment-scan-button" class="booth-primary-button" type="button">
+      학생증 인식하기
+    </button>
+    <p id="payment-status" class="booth-status" aria-live="polite">
+      학생증을 NFC 리더기에 가까이 대주세요.
     </p>
   </section>
 </main>
+<script>
+  window.boothMenus = {{ menus | tojson }};
+</script>
+<script src="{{ url_for('static', path='js/booth.js') }}"></script>
 {% endblock %}
