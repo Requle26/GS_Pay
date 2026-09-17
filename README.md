@@ -5,8 +5,6 @@
 
 학생증에 내장되어있는 NFC태그를 사용합니다
 
-로컬 환경 : uvicorn app.main:app --reload --env-file .env
-
 ## 개발 환경
 
 ```bash
