@@ -207,6 +207,10 @@ function openPayment(menu) {
 function closePayment() {
   paymentPanel.hidden = true;
   selectedMenu = null;
+  paymentMenuName.textContent = "메뉴에서 결제할 메뉴를 선택해주세요.";
+  paymentScanButton.disabled = true;
+  paymentStatus.textContent =
+    "메뉴의 NFC 결제 버튼을 누르면 결제를 시작할 수 있습니다.";
 }
 
 function setPaymentScanning(isScanning) {

@@ -19,6 +19,40 @@
     {% endif %}
   </section>
 
+  <section
+    id="payment-panel"
+    class="payment-panel booth-payment-first"
+    aria-labelledby="payment-title"
+  >
+    <div class="payment-panel-heading">
+      <div>
+        <p class="eyebrow">PAYMENT</p>
+        <h2 id="payment-title">학생증 결제</h2>
+      </div>
+      <button
+        id="payment-close-button"
+        class="booth-secondary-button"
+        type="button"
+      >
+        닫기
+      </button>
+    </div>
+    <p id="payment-menu-name" class="payment-menu-name">
+      메뉴에서 결제할 메뉴를 선택해주세요.
+    </p>
+    <button
+      id="payment-scan-button"
+      class="booth-primary-button"
+      type="button"
+      disabled
+    >
+      학생증 인식하기
+    </button>
+    <p id="payment-status" class="booth-status" aria-live="polite">
+      메뉴의 NFC 결제 버튼을 누르면 결제를 시작할 수 있습니다.
+    </p>
+  </section>
+
   <section class="booth-content" aria-labelledby="menu-title">
     <div class="booth-section-heading">
       <div>
@@ -125,34 +159,6 @@
     <div id="sales-list" class="sales-list"></div>
     <p id="sales-empty" class="menu-empty" hidden>아직 결제 내역이 없습니다.</p>
     <p id="sales-status" class="booth-status" aria-live="polite"></p>
-  </section>
-
-  <section
-    id="payment-panel"
-    class="payment-panel"
-    hidden
-    aria-labelledby="payment-title"
-  >
-    <div class="payment-panel-heading">
-      <div>
-        <p class="eyebrow">PAYMENT</p>
-        <h2 id="payment-title">학생증 결제</h2>
-      </div>
-      <button
-        id="payment-close-button"
-        class="booth-secondary-button"
-        type="button"
-      >
-        닫기
-      </button>
-    </div>
-    <p id="payment-menu-name" class="payment-menu-name"></p>
-    <button id="payment-scan-button" class="booth-primary-button" type="button">
-      학생증 인식하기
-    </button>
-    <p id="payment-status" class="booth-status" aria-live="polite">
-      학생증을 NFC 리더기에 가까이 대주세요.
-    </p>
   </section>
 </main>
 <script>
