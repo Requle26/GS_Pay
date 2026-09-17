@@ -2,6 +2,9 @@ const scanButton = document.querySelector("#scan-button");
 const scanStatus = document.querySelector("#scan-status");
 const balanceValue = document.querySelector("#balance-value");
 const resultMessage = document.querySelector("#result-message");
+const transactionSection = document.querySelector("#transaction-section");
+const transactionList = document.querySelector("#transaction-list");
+const transactionEmpty = document.querySelector("#transaction-empty");
 
 const SCAN_TIMEOUT_MS = 30_000;
 
@@ -16,14 +19,85 @@ function showNotFound(message = "정보를 찾을 수 없습니다.") {
   balanceValue.textContent = "-";
   resultMessage.textContent = message;
   resultMessage.hidden = false;
+  transactionSection.hidden = true;
+  transactionList.replaceChildren();
 }
 
 async function getBalance(serialNumber) {
-  const response = await fetch(`/api/cards/${encodeURIComponent(serialNumber)}`);
+  const response = await fetch(
+    `/api/cards/${encodeURIComponent(serialNumber)}`,
+  );
   if (!response.ok) return null;
 
   const data = await response.json();
   return data.balance;
+}
+
+async function getTransactions(serialNumber) {
+  const response = await fetch(
+    `/api/cards/${encodeURIComponent(serialNumber)}/transactions`,
+  );
+  if (!response.ok) throw new Error("이용 내역을 불러오지 못했습니다.");
+  const data = await response.json();
+  return data.transactions || [];
+}
+
+function formatTransactionAmount(transaction) {
+  const amount = Number(transaction.amount || 0);
+  const isSpend = transaction.type === "SPEND";
+  const signedAmount = isSpend && amount > 0 ? -amount : amount;
+  const sign = signedAmount > 0 ? "+" : "";
+  return `${sign}${signedAmount.toLocaleString("ko-KR")}원`;
+}
+
+function formatTransactionType(type) {
+  return (
+    {
+      CHARGE: "입금",
+      SPEND: "출금",
+      ADJUSTMENT: "잔액 조정",
+    }[type] || type
+  );
+}
+
+function formatTransactionDate(value) {
+  if (!value) return "시간 정보 없음";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("ko-KR", {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function showTransactions(transactions) {
+  transactionList.replaceChildren();
+  transactionSection.hidden = false;
+  transactionEmpty.hidden = transactions.length > 0;
+  transactions.forEach((transaction) => {
+    const item = document.createElement("article");
+    item.className = "transaction-item";
+
+    const details = document.createElement("div");
+    details.className = "transaction-details";
+    const type = document.createElement("strong");
+    type.textContent = formatTransactionType(transaction.type);
+    const description = document.createElement("span");
+    description.textContent = transaction.description || "거래 내역";
+    const date = document.createElement("time");
+    date.dateTime = transaction.created_at || "";
+    date.textContent = formatTransactionDate(transaction.created_at);
+    details.append(type, description, date);
+
+    const amount = document.createElement("strong");
+    amount.className = `transaction-amount transaction-${String(transaction.type).toLowerCase()}`;
+    amount.textContent = formatTransactionAmount(transaction);
+    item.append(details, amount);
+    transactionList.append(item);
+  });
 }
 
 async function scanStudentCard() {
@@ -33,7 +107,8 @@ async function scanStudentCard() {
 
   if (!("NDEFReader" in window)) {
     showNotFound("이 기기에서는 NFC를 사용할 수 없습니다.");
-    scanStatus.textContent = "NFC를 지원하는 기기와 브라우저에서 다시 시도해주세요.";
+    scanStatus.textContent =
+      "NFC를 지원하는 기기와 브라우저에서 다시 시도해주세요.";
     setScanning(false);
     return;
   }
@@ -56,31 +131,45 @@ async function scanStudentCard() {
   try {
     const reader = new NDEFReader();
     await reader.scan({ signal: controller.signal });
-    reader.addEventListener("reading", async (event) => {
-      finishScan();
-      scanStatus.textContent = "학생증 정보를 확인하는 중입니다...";
+    reader.addEventListener(
+      "reading",
+      async (event) => {
+        finishScan();
+        scanStatus.textContent = "학생증 정보를 확인하는 중입니다...";
 
-      try {
-        const balance = await getBalance(event.serialNumber);
-        if (balance === null) {
+        try {
+          const balance = await getBalance(event.serialNumber);
+          if (balance === null) {
+            showNotFound();
+            scanStatus.textContent = "등록되지 않은 학생증입니다.";
+            return;
+          }
+
+          balanceValue.textContent = `${Number(balance).toLocaleString("ko-KR")}원`;
+          resultMessage.hidden = true;
+          try {
+            const transactions = await getTransactions(event.serialNumber);
+            showTransactions(transactions);
+          } catch (error) {
+            transactionSection.hidden = true;
+          }
+          scanStatus.textContent = "학생증을 인식했습니다.";
+        } catch (error) {
           showNotFound();
-          scanStatus.textContent = "등록되지 않은 학생증입니다.";
-          return;
+          scanStatus.textContent = "잔액 정보를 불러오지 못했습니다.";
         }
-
-        balanceValue.textContent = `${Number(balance).toLocaleString("ko-KR")}원`;
-        resultMessage.hidden = true;
-        scanStatus.textContent = "학생증을 인식했습니다.";
-      } catch (error) {
-        showNotFound();
-        scanStatus.textContent = "잔액 정보를 불러오지 못했습니다.";
-      }
-    }, { once: true });
-    reader.addEventListener("readingerror", () => {
-      finishScan();
-      showNotFound("학생증을 읽지 못했습니다.");
-      scanStatus.textContent = "학생증을 다시 인식해주세요.";
-    }, { once: true });
+      },
+      { once: true },
+    );
+    reader.addEventListener(
+      "readingerror",
+      () => {
+        finishScan();
+        showNotFound("학생증을 읽지 못했습니다.");
+        scanStatus.textContent = "학생증을 다시 인식해주세요.";
+      },
+      { once: true },
+    );
   } catch (error) {
     if (!scanFinished) {
       finishScan();

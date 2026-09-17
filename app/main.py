@@ -245,6 +245,36 @@ def get_card_balance(serial_number: str):
     return {"balance": response.data[0]["balance"]}
 
 
+@app.get("/api/cards/{serial_number}/transactions")
+def get_card_transactions(serial_number: str):
+    serial_number = serial_number.strip()
+    if not serial_number:
+        raise HTTPException(status_code=400, detail="Card serial number is required")
+
+    student_response = (
+        get_supabase()
+        .table("students")
+        .select("id")
+        .eq("nfc_serial", serial_number)
+        .eq("status", "ACTIVE")
+        .limit(1)
+        .execute()
+    )
+    if not student_response.data:
+        raise HTTPException(status_code=404, detail="Card information not found")
+
+    transactions_response = (
+        get_supabase()
+        .table("transactions")
+        .select("type, amount, balance_after, description, created_at")
+        .eq("student_id", student_response.data[0]["id"])
+        .order("created_at", desc=True)
+        .limit(20)
+        .execute()
+    )
+    return {"transactions": transactions_response.data or []}
+
+
 @app.get("/api/exchange/students/{serial_number}")
 def get_exchange_student(serial_number: str, request: Request):
     get_exchange_admin(request)

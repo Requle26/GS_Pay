@@ -597,6 +597,92 @@ h1 em {
   border-radius: 17px;
   box-shadow: 0 2px 9px rgba(0, 0, 0, 0.12);
 }
+
+.transaction-section {
+  margin-top: 20px;
+  padding: 20px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #dedede;
+  border-radius: 17px;
+  box-shadow: 0 2px 9px rgba(0, 0, 0, 0.08);
+}
+
+.transaction-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid #e4ece9;
+}
+
+.transaction-heading h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.transaction-heading span {
+  color: #777;
+  font-size: 0.8rem;
+}
+
+.transaction-list {
+  display: grid;
+}
+
+.transaction-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 0;
+  border-bottom: 1px solid #edf2f0;
+}
+
+.transaction-details {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.transaction-details strong {
+  color: #222;
+}
+
+.transaction-details span,
+.transaction-details time {
+  overflow: hidden;
+  color: #777;
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transaction-amount {
+  flex: 0 0 auto;
+  font-size: 1rem;
+}
+
+.transaction-charge {
+  color: #087e68;
+}
+
+.transaction-spend {
+  color: #b42318;
+}
+
+.transaction-adjustment {
+  color: #555;
+}
+
+.transaction-empty {
+  margin: 0;
+  padding: 24px 0 8px;
+  color: #777;
+  text-align: center;
+  font-size: 0.9rem;
+}
 .balance-label {
   margin: 0 0 41px;
   color: #777;
@@ -718,6 +804,15 @@ footer {
   }
   .balance-value {
     font-size: 2.2rem;
+  }
+  .transaction-section {
+    padding: 16px;
+  }
+  .transaction-item {
+    gap: 10px;
+  }
+  .transaction-amount {
+    font-size: 0.9rem;
   }
   .scan-button {
     margin-top: 22px;

@@ -1,36 +1,58 @@
-{% extends "base.html" %}
+{% extends "base.html" %} {% block content %}
+<main class="pay-page">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="GBSW Pay 홈">GBSW_Pay</a>
+    <a class="login-button" href="/login">
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <path
+          d="M13 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5M3 12h12m-4-4 4 4-4 4"
+        />
+      </svg>
+      로그인
+    </a>
+  </header>
 
-{% block content %}
-  <main class="pay-page">
-    <header class="topbar">
-      <a class="brand" href="/" aria-label="GBSW Pay 홈">GBSW_Pay</a>
-      <a class="login-button" href="/login">
-        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M13 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5M3 12h12m-4-4 4 4-4 4"/></svg>
-        로그인
-      </a>
-    </header>
+  <section class="balance-section" aria-labelledby="page-title">
+    <div class="student-card-icon" aria-hidden="true">
+      <span></span><i></i><b></b>
+    </div>
+    <h1 id="page-title">학생증을<br /><em>인식</em>시켜주세요</h1>
+    <p class="description">학생증을 인식하면 잔액이 표시됩니다.</p>
 
-    <section class="balance-section" aria-labelledby="page-title">
-      <div class="student-card-icon" aria-hidden="true">
-        <span></span><i></i><b></b>
-      </div>
-      <h1 id="page-title">학생증을<br><em>인식</em>시켜주세요</h1>
-      <p class="description">학생증을 인식하면 잔액이 표시됩니다.</p>
-
-      <section class="balance-card" aria-live="polite" aria-atomic="true">
-        <p class="balance-label">현재 잔액</p>
-        <p id="balance-value" class="balance-value">-</p>
-        <p id="result-message" class="result-message" hidden></p>
-      </section>
-
-      <button id="scan-button" class="scan-button" type="button">
-        <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 17h5m4-6h3m-3 4h3"/></svg>
-        <span>학생증 인식하기</span>
-      </button>
-      <p id="scan-status" class="scan-status" aria-live="polite"></p>
+    <section class="balance-card" aria-live="polite" aria-atomic="true">
+      <p class="balance-label">현재 잔액</p>
+      <p id="balance-value" class="balance-value">-</p>
+      <p id="result-message" class="result-message" hidden></p>
     </section>
 
-    <footer>문의: 1402 김성일</footer>
-  </main>
-  <script src="{{ url_for('static', path='js/nfc.js') }}"></script>
+    <section
+      id="transaction-section"
+      class="transaction-section"
+      hidden
+      aria-labelledby="transaction-title"
+    >
+      <div class="transaction-heading">
+        <h2 id="transaction-title">최근 이용 내역</h2>
+        <span>최근 20건</span>
+      </div>
+      <div id="transaction-list" class="transaction-list"></div>
+      <p id="transaction-empty" class="transaction-empty" hidden>
+        이용 내역이 없습니다.
+      </p>
+    </section>
+
+    <button id="scan-button" class="scan-button" type="button">
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <rect x="3" y="5" width="18" height="15" rx="2" />
+        <circle cx="8" cy="11" r="2" />
+        <path d="M5.5 17h5m4-6h3m-3 4h3" />
+      </svg>
+      <span>학생증 인식하기</span>
+    </button>
+    <p id="scan-status" class="scan-status" aria-live="polite"></p>
+  </section>
+
+  <footer>문의: 1402 김성일</footer>
+</main>
+<script src="{{ url_for('static', path='js/nfc.js') }}"></script>
 {% endblock %}
