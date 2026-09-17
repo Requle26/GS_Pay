@@ -23,14 +23,12 @@ function showNotFound(message = "정보를 찾을 수 없습니다.") {
   transactionList.replaceChildren();
 }
 
-async function getBalance(serialNumber) {
+async function getCardInfo(serialNumber) {
   const response = await fetch(
     `/api/cards/${encodeURIComponent(serialNumber)}`,
   );
-  if (!response.ok) return null;
-
   const data = await response.json();
-  return data.balance;
+  return { response, data };
 }
 
 async function getTransactions(serialNumber) {
@@ -138,14 +136,23 @@ async function scanStudentCard() {
         scanStatus.textContent = "학생증 정보를 확인하는 중입니다...";
 
         try {
-          const balance = await getBalance(event.serialNumber);
-          if (balance === null) {
+          const card = await getCardInfo(event.serialNumber);
+          if (!card.response.ok) {
+            if (
+              card.response.headers.get("X-Card-Status") === "SUSPEND" ||
+              card.data.detail === "이용 정지된 학생증입니다."
+            ) {
+              showNotFound("이용 정지된 학생증입니다.");
+              scanStatus.textContent = "이 학생증은 현재 사용할 수 없습니다.";
+              return;
+            }
+
             showNotFound();
             scanStatus.textContent = "등록되지 않은 학생증입니다.";
             return;
           }
 
-          balanceValue.textContent = `${Number(balance).toLocaleString("ko-KR")}원`;
+          balanceValue.textContent = `${Number(card.data.balance).toLocaleString("ko-KR")}원`;
           resultMessage.hidden = true;
           try {
             const transactions = await getTransactions(event.serialNumber);

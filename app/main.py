@@ -229,12 +229,15 @@ def exchange_dashboard(request: Request):
 
 @app.get("/api/cards/{serial_number}")
 def get_card_balance(serial_number: str):
+    serial_number = serial_number.strip()
+    if not serial_number:
+        raise HTTPException(status_code=400, detail="Card serial number is required")
+
     response = (
         get_supabase()
         .table("students")
-        .select("balance")
+        .select("balance, status")
         .eq("nfc_serial", serial_number)
-        .eq("status", "ACTIVE")
         .limit(1)
         .execute()
     )
@@ -242,7 +245,18 @@ def get_card_balance(serial_number: str):
     if not response.data:
         raise HTTPException(status_code=404, detail="Card information not found")
 
-    return {"balance": response.data[0]["balance"]}
+    student = response.data[0]
+    if str(student.get("status", "")).upper() == "SUSPEND":
+        raise HTTPException(
+            status_code=403,
+            detail="이용 정지된 학생증입니다.",
+            headers={"X-Card-Status": "SUSPEND"},
+        )
+
+    if str(student.get("status", "")).upper() != "ACTIVE":
+        raise HTTPException(status_code=403, detail="사용할 수 없는 학생증입니다.")
+
+    return {"balance": student["balance"], "status": student["status"]}
 
 
 @app.get("/api/cards/{serial_number}/transactions")
