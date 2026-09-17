@@ -481,6 +481,91 @@ body {
   border-top: 1px solid #e4ece9;
 }
 
+.admin-manage-page .admin-dashboard {
+  padding-bottom: 36px;
+}
+
+.admin-section {
+  width: min(100%, 1280px);
+  margin: 0 auto;
+  padding: 42px 0 18px;
+  border-bottom: 1px solid #dcebe7;
+}
+
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  padding: 26px 0 8px;
+}
+
+.admin-stats div {
+  display: grid;
+  gap: 8px;
+  padding: 18px 16px;
+  border: 1px solid #dcebe7;
+  border-radius: 12px;
+  background: #f7fcfa;
+}
+
+.admin-stats span {
+  color: #66716e;
+  font-size: 0.88rem;
+}
+
+.admin-stats strong {
+  color: #087e68;
+  font-size: 1.35rem;
+  letter-spacing: -0.4px;
+}
+
+.admin-inline-form,
+.admin-account-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(160px, 1fr)) auto;
+  align-items: end;
+  gap: 14px;
+  padding: 22px 0;
+  border-bottom: 1px solid #dcebe7;
+  margin-bottom: 8px;
+}
+
+.admin-account-form {
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+}
+
+.admin-inline-form label,
+.admin-account-form label {
+  display: grid;
+  gap: 8px;
+  color: #35403d;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.admin-inline-form input,
+.admin-inline-form select,
+.admin-account-form input,
+.admin-account-form select {
+  width: 100%;
+  padding: 12px;
+  font: inherit;
+  border: 1px solid #c9d4d1;
+  border-radius: 8px;
+  outline-color: #07ad8c;
+}
+
+.admin-inline-form .menu-form-actions,
+.admin-account-form .menu-form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.admin-inline-form .booth-status,
+.admin-account-form .booth-status {
+  grid-column: 1 / -1;
+}
+
 .student-list {
   width: min(100%, 1100px);
   margin: 0 auto;
@@ -1178,6 +1263,17 @@ footer {
   .admin-dashboard {
     margin-top: 90px;
     padding: 29px 24px;
+  }
+  .admin-manage-page .admin-dashboard {
+    margin-top: 0;
+    padding: 40px 0 28px;
+  }
+  .admin-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+  .admin-inline-form,
+  .admin-account-form {
+    grid-template-columns: 1fr;
   }
   .student-list {
     padding-top: 34px;

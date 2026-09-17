@@ -98,6 +98,130 @@ def get_booth_admin(request: Request) -> dict:
     return admin
 
 
+def get_system_admin(request: Request) -> dict:
+    admin = get_current_admin(request)
+    if admin is None or str(admin.get("role", "")).upper() != "ADMIN":
+        raise HTTPException(status_code=403, detail="Admin permission required")
+    return admin
+
+
+def load_admin_overview() -> dict:
+    students_response = (
+        get_supabase()
+        .table("students")
+        .select("id, balance, status")
+        .execute()
+    )
+    students = students_response.data or []
+    total_balance = sum(int(student.get("balance") or 0) for student in students)
+
+    booths_response = (
+        get_supabase()
+        .table("booths")
+        .select("id, name, status")
+        .order("name")
+        .execute()
+    )
+    booths = booths_response.data or []
+    booth_names = {booth["id"]: booth.get("name") or "부스" for booth in booths}
+
+    admins_response = (
+        get_supabase()
+        .table("admins")
+        .select("id, username, role, booth_id, status")
+        .order("username")
+        .execute()
+    )
+    admins = []
+    for admin_row in admins_response.data or []:
+        admins.append(
+            {
+                **admin_row,
+                "booth_name": booth_names.get(admin_row.get("booth_id")),
+            }
+        )
+
+    transactions_response = (
+        get_supabase()
+        .table("transactions")
+        .select(
+            "id, type, amount, balance_after, description, created_at, booth_id, admin_id, student_id"
+        )
+        .order("created_at", desc=True)
+        .limit(100)
+        .execute()
+    )
+    recent_transactions = transactions_response.data or []
+
+    amount_rows = (
+        get_supabase()
+        .table("transactions")
+        .select("type, amount")
+        .execute()
+    ).data or []
+    total_charge = sum(
+        int(row.get("amount") or 0)
+        for row in amount_rows
+        if str(row.get("type", "")).upper() == "CHARGE"
+    )
+    total_spend = sum(
+        int(row.get("amount") or 0)
+        for row in amount_rows
+        if str(row.get("type", "")).upper() == "SPEND"
+    )
+
+    student_ids = {
+        transaction["student_id"]
+        for transaction in recent_transactions
+        if transaction.get("student_id")
+    }
+    student_names: dict[str, str] = {}
+    if student_ids:
+        students_detail = (
+            get_supabase()
+            .table("students")
+            .select("id, name, student_number")
+            .in_("id", list(student_ids))
+            .execute()
+        ).data or []
+        for student in students_detail:
+            student_names[student["id"]] = (
+                f"{student.get('name') or '-'} ({student.get('student_number') or '-'})"
+            )
+
+    admin_names = {admin_row["id"]: admin_row.get("username") or "-" for admin_row in admins}
+    enriched_transactions = []
+    for transaction in recent_transactions:
+        enriched_transactions.append(
+            {
+                **transaction,
+                "booth_name": booth_names.get(transaction.get("booth_id")),
+                "admin_name": admin_names.get(transaction.get("admin_id")),
+                "student_label": student_names.get(transaction.get("student_id")),
+            }
+        )
+
+    return {
+        "stats": {
+            "student_count": len(students),
+            "active_student_count": sum(
+                1
+                for student in students
+                if str(student.get("status", "")).upper() == "ACTIVE"
+            ),
+            "total_balance": total_balance,
+            "total_charge": total_charge,
+            "total_spend": total_spend,
+            "booth_count": len(booths),
+            "admin_count": len(admins),
+            "transaction_count": len(amount_rows),
+        },
+        "booths": booths,
+        "admins": admins,
+        "transactions": enriched_transactions,
+    }
+
+
 @app.get("/api/booth/sales")
 def get_booth_sales(request: Request):
     admin = get_booth_admin(request)
@@ -241,11 +365,265 @@ def admin_dashboard(request: Request):
     if redirect:
         return redirect
 
+    overview = {
+        "stats": {
+            "student_count": 0,
+            "active_student_count": 0,
+            "total_balance": 0,
+            "total_charge": 0,
+            "total_spend": 0,
+            "booth_count": 0,
+            "admin_count": 0,
+            "transaction_count": 0,
+        },
+        "booths": [],
+        "admins": [],
+        "transactions": [],
+    }
+    admin_load_error = None
+    try:
+        overview = load_admin_overview()
+    except Exception:
+        logger.exception("Admin dashboard data loading failed")
+        admin_load_error = "관리 데이터를 불러오지 못했습니다. Supabase 권한을 확인해주세요."
+
     return templates.TemplateResponse(
         request=request,
         name="admin.html",
-        context={"title": "관리자 페이지", "admin": admin},
+        context={
+            "title": "관리자 페이지",
+            "admin": admin,
+            "stats": overview["stats"],
+            "booths": overview["booths"],
+            "admins": overview["admins"],
+            "transactions": overview["transactions"],
+            "admin_load_error": admin_load_error,
+        },
     )
+
+
+@app.post("/api/admin/booths")
+def create_admin_booth(
+    request: Request,
+    name: str | None = Form(default=None),
+):
+    get_system_admin(request)
+    name = (name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="부스 이름은 필수입니다.")
+
+    try:
+        response = (
+            get_supabase()
+            .table("booths")
+            .insert({"name": name, "status": "ACTIVE"})
+            .execute()
+        )
+    except Exception as error:
+        logger.exception("Booth create failed")
+        raise server_error("부스를 추가하지 못했습니다. Supabase 권한을 확인해주세요.") from error
+    if not response.data:
+        raise HTTPException(status_code=500, detail="부스를 추가하지 못했습니다.")
+    return {"booth": response.data[0]}
+
+
+@app.post("/api/admin/booths/{booth_id}")
+def update_admin_booth(
+    booth_id: str,
+    request: Request,
+    name: str | None = Form(default=None),
+    status: str | None = Form(default=None),
+):
+    get_system_admin(request)
+    name = (name or "").strip()
+    status = (status or "").strip().upper()
+    if not name:
+        raise HTTPException(status_code=400, detail="부스 이름은 필수입니다.")
+    if status not in {"ACTIVE", "INACTIVE"}:
+        raise HTTPException(status_code=400, detail="부스 상태가 올바르지 않습니다.")
+
+    try:
+        response = (
+            get_supabase()
+            .table("booths")
+            .update({"name": name, "status": status})
+            .eq("id", booth_id)
+            .select("id, name, status")
+            .execute()
+        )
+    except Exception as error:
+        logger.exception("Booth update failed")
+        raise server_error("부스를 수정하지 못했습니다. Supabase 권한을 확인해주세요.") from error
+    if not response.data:
+        raise HTTPException(status_code=404, detail="부스를 찾을 수 없습니다.")
+    return {"booth": response.data[0]}
+
+
+@app.post("/api/admin/accounts")
+def create_admin_account(
+    request: Request,
+    email: str | None = Form(default=None),
+    password: str | None = Form(default=None),
+    username: str | None = Form(default=None),
+    role: str | None = Form(default=None),
+    booth_id: str | None = Form(default=None),
+):
+    get_system_admin(request)
+    email = (email or "").strip()
+    password = password or ""
+    username = (username or "").strip()
+    role = (role or "").strip().upper()
+    booth_id = (booth_id or "").strip() or None
+
+    if not email or not password or not username:
+        raise HTTPException(status_code=400, detail="이메일, 비밀번호, 이름은 필수입니다.")
+    if len(password) < 6:
+        raise HTTPException(status_code=400, detail="비밀번호는 6자 이상이어야 합니다.")
+    if role not in {"ADMIN", "EXCHANGE", "BOOTH"}:
+        raise HTTPException(status_code=400, detail="역할이 올바르지 않습니다.")
+    if role == "BOOTH" and not booth_id:
+        raise HTTPException(status_code=400, detail="부스 계정은 부스 연결이 필요합니다.")
+    if role != "BOOTH":
+        booth_id = None
+
+    if booth_id:
+        booth_response = (
+            get_supabase()
+            .table("booths")
+            .select("id")
+            .eq("id", booth_id)
+            .limit(1)
+            .execute()
+        )
+        if not booth_response.data:
+            raise HTTPException(status_code=404, detail="연결할 부스를 찾을 수 없습니다.")
+
+    try:
+        auth_response = get_supabase().auth.admin.create_user(
+            {
+                "email": email,
+                "password": password,
+                "email_confirm": True,
+            }
+        )
+        user = auth_response.user
+        if user is None:
+            raise RuntimeError("Auth user was not created")
+        user_id = str(user.id)
+    except HTTPException:
+        raise
+    except Exception as error:
+        logger.exception("Admin account auth creation failed")
+        raise server_error("인증 계정을 만들지 못했습니다. 이메일 중복 여부를 확인해주세요.") from error
+
+    try:
+        insert_response = (
+            get_supabase()
+            .table("admins")
+            .insert(
+                {
+                    "id": user_id,
+                    "username": username,
+                    "role": role,
+                    "booth_id": booth_id,
+                    "status": "ACTIVE",
+                }
+            )
+            .execute()
+        )
+    except Exception as error:
+        logger.exception("Admin account profile insert failed")
+        try:
+            get_supabase().auth.admin.delete_user(user_id)
+        except Exception:
+            logger.exception("Auth user rollback after admin insert failure failed")
+        raise server_error("관리자 프로필을 저장하지 못했습니다.") from error
+
+    if not insert_response.data:
+        try:
+            get_supabase().auth.admin.delete_user(user_id)
+        except Exception:
+            logger.exception("Auth user rollback after empty admin insert failed")
+        raise HTTPException(status_code=500, detail="관리자 프로필을 저장하지 못했습니다.")
+
+    return {"admin": insert_response.data[0]}
+
+
+@app.post("/api/admin/accounts/{admin_id}")
+def update_admin_account(
+    admin_id: str,
+    request: Request,
+    username: str | None = Form(default=None),
+    role: str | None = Form(default=None),
+    booth_id: str | None = Form(default=None),
+    status: str | None = Form(default=None),
+):
+    current_admin = get_system_admin(request)
+    username = (username or "").strip()
+    role = (role or "").strip().upper()
+    status = (status or "").strip().upper()
+    booth_raw = booth_id if booth_id is not None else ""
+    booth_id = booth_raw.strip() or None
+
+    if not username:
+        raise HTTPException(status_code=400, detail="계정 이름은 필수입니다.")
+    if role not in {"ADMIN", "EXCHANGE", "BOOTH"}:
+        raise HTTPException(status_code=400, detail="역할이 올바르지 않습니다.")
+    if status not in {"ACTIVE", "INACTIVE"}:
+        raise HTTPException(status_code=400, detail="계정 상태가 올바르지 않습니다.")
+    if role == "BOOTH" and not booth_id:
+        raise HTTPException(status_code=400, detail="부스 계정은 부스 연결이 필요합니다.")
+    if role != "BOOTH":
+        booth_id = None
+    if admin_id == current_admin["id"] and status != "ACTIVE":
+        raise HTTPException(status_code=400, detail="현재 로그인 계정은 비활성화할 수 없습니다.")
+    if admin_id == current_admin["id"] and role != "ADMIN":
+        raise HTTPException(status_code=400, detail="현재 로그인 계정의 역할은 변경할 수 없습니다.")
+
+    if booth_id:
+        booth_response = (
+            get_supabase()
+            .table("booths")
+            .select("id")
+            .eq("id", booth_id)
+            .limit(1)
+            .execute()
+        )
+        if not booth_response.data:
+            raise HTTPException(status_code=404, detail="연결할 부스를 찾을 수 없습니다.")
+
+    try:
+        response = (
+            get_supabase()
+            .table("admins")
+            .update(
+                {
+                    "username": username,
+                    "role": role,
+                    "booth_id": booth_id,
+                    "status": status,
+                }
+            )
+            .eq("id", admin_id)
+            .select("id, username, role, booth_id, status")
+            .execute()
+        )
+    except Exception as error:
+        logger.exception("Admin account update failed")
+        raise server_error("계정을 수정하지 못했습니다. Supabase 권한을 확인해주세요.") from error
+    if not response.data:
+        raise HTTPException(status_code=404, detail="계정을 찾을 수 없습니다.")
+    return {"admin": response.data[0]}
+
+
+@app.get("/api/admin/overview")
+def get_admin_overview(request: Request):
+    get_system_admin(request)
+    try:
+        return load_admin_overview()
+    except Exception as error:
+        logger.exception("Admin overview refresh failed")
+        raise server_error("관리 데이터를 불러오지 못했습니다.") from error
 
 
 @app.get("/booth", name="booth_dashboard")
