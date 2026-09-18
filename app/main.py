@@ -755,7 +755,6 @@ def delete_booth_menu(menu_id: str, request: Request):
         raise HTTPException(status_code=404, detail="메뉴를 찾을 수 없습니다.")
     return {"deleted": True, "menu_id": menu_id}
 
-
 @app.post("/api/booth/menus/{menu_id}/pay")
 def pay_booth_menu(
     menu_id: str,
@@ -767,79 +766,28 @@ def pay_booth_menu(
     if not nfc_serial:
         raise HTTPException(status_code=400, detail="학생증을 인식해주세요.")
 
-    menu_response = (
-        get_supabase()
-        .table("menus")
-        .select("id, booth_id, name, price, status")
-        .eq("id", menu_id)
-        .eq("booth_id", admin["booth_id"])
-        .eq("status", "ACTIVE")
-        .limit(1)
-        .execute()
-    )
-    if not menu_response.data:
-        raise HTTPException(status_code=404, detail="판매 중인 메뉴가 아닙니다.")
-
-    student_response = (
-        get_supabase()
-        .table("students")
-        .select("id, name, balance, status")
-        .eq("nfc_serial", nfc_serial)
-        .limit(1)
-        .execute()
-    )
-    if not student_response.data:
-        raise HTTPException(status_code=404, detail="등록되지 않은 학생증입니다.")
-
-    student = student_response.data[0]
-    if str(student.get("status", "")).upper() == "SUSPEND":
-        raise HTTPException(status_code=403, detail="이용 정지된 학생증입니다.")
-    if str(student.get("status", "")).upper() != "ACTIVE":
-        raise HTTPException(status_code=403, detail="사용할 수 없는 학생증입니다.")
-
-    price = int(menu_response.data[0]["price"])
-    current_balance = int(student.get("balance") or 0)
-    if current_balance < price:
-        raise HTTPException(
-            status_code=409,
-            detail=f"잔액이 부족합니다. 현재 잔액: {current_balance:,}원",
-        )
-
-    balance_after = current_balance - price
-    update_response = (
-        get_supabase()
-        .table("students")
-        .update({"balance": balance_after})
-        .eq("id", student["id"])
-        .eq("status", "ACTIVE")
-        .eq("balance", current_balance)
-        .select("id, name, balance, status")
-        .execute()
-    )
-    if not update_response.data:
-        raise HTTPException(status_code=409, detail="잔액이 변경되었습니다. 다시 결제해주세요.")
-
     try:
-        insert_transaction(
-            admin=admin,
-            student_id=str(student["id"]),
-            transaction_type="SPEND",
-            amount=price,
-            balance_after=balance_after,
-            description=f"{menu_response.data[0]['name']} 결제",
-        )
+        # ★ Supabase RPC 호출: get_supabase().rpc("함수이름", {매개변수})
+        response = get_supabase().rpc(
+            "process_booth_payment",
+            {
+                "p_nfc_serial": nfc_serial,
+                "p_menu_id": menu_id,
+                "p_booth_id": admin["booth_id"],
+                "p_admin_id": admin["id"],
+            }
+        ).execute()
+
+        # 결과 반환
+        return response.data
+
     except Exception as error:
-        logger.exception("Booth payment transaction insert failed")
-        get_supabase().table("students").update(
-            {"balance": current_balance}
-        ).eq("id", student["id"]).eq("balance", balance_after).execute()
-        raise server_error("결제 내역을 저장하지 못했습니다.") from error
-
-    return {
-        "menu": menu_response.data[0],
-        "student": update_response.data[0],
-    }
-
+        # SQL에서 RAISE EXCEPTION으로 던진 에러 메시지가 error 객체에 포함되어 옵니다.
+        error_msg = str(error)
+        logger.warning(f"Payment failed: {error_msg}")
+        
+        # 클라이언트에게 에러 메시지 전달
+        raise HTTPException(status_code=400, detail="결제 실패: " + error_msg)
 
 @app.get("/exchange", name="exchange_dashboard")
 def exchange_dashboard(request: Request):
