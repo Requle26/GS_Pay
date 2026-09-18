@@ -106,120 +106,10 @@ def get_system_admin(request: Request) -> dict:
 
 
 def load_admin_overview() -> dict:
-    students_response = (
-        get_supabase()
-        .table("students")
-        .select("id, balance, status")
-        .execute()
-    )
-    students = students_response.data or []
-    total_balance = sum(int(student.get("balance") or 0) for student in students)
-
-    booths_response = (
-        get_supabase()
-        .table("booths")
-        .select("id, name, status")
-        .order("name")
-        .execute()
-    )
-    booths = booths_response.data or []
-    booth_names = {booth["id"]: booth.get("name") or "부스" for booth in booths}
-
-    admins_response = (
-        get_supabase()
-        .table("admins")
-        .select("id, username, role, booth_id, status")
-        .order("username")
-        .execute()
-    )
-    admins = []
-    for admin_row in admins_response.data or []:
-        admins.append(
-            {
-                **admin_row,
-                "booth_name": booth_names.get(admin_row.get("booth_id")),
-            }
-        )
-
-    transactions_response = (
-        get_supabase()
-        .table("transactions")
-        .select(
-            "id, type, amount, balance_after, description, created_at, booth_id, admin_id, student_id"
-        )
-        .order("created_at", desc=True)
-        .limit(100)
-        .execute()
-    )
-    recent_transactions = transactions_response.data or []
-
-    amount_rows = (
-        get_supabase()
-        .table("transactions")
-        .select("type, amount")
-        .execute()
-    ).data or []
-    total_charge = sum(
-        int(row.get("amount") or 0)
-        for row in amount_rows
-        if str(row.get("type", "")).upper() == "CHARGE"
-    )
-    total_spend = sum(
-        int(row.get("amount") or 0)
-        for row in amount_rows
-        if str(row.get("type", "")).upper() == "SPEND"
-    )
-
-    student_ids = {
-        transaction["student_id"]
-        for transaction in recent_transactions
-        if transaction.get("student_id")
-    }
-    student_names: dict[str, str] = {}
-    if student_ids:
-        students_detail = (
-            get_supabase()
-            .table("students")
-            .select("id, name, student_number")
-            .in_("id", list(student_ids))
-            .execute()
-        ).data or []
-        for student in students_detail:
-            student_names[student["id"]] = (
-                f"{student.get('name') or '-'} ({student.get('student_number') or '-'})"
-            )
-
-    admin_names = {admin_row["id"]: admin_row.get("username") or "-" for admin_row in admins}
-    enriched_transactions = []
-    for transaction in recent_transactions:
-        enriched_transactions.append(
-            {
-                **transaction,
-                "booth_name": booth_names.get(transaction.get("booth_id")),
-                "admin_name": admin_names.get(transaction.get("admin_id")),
-                "student_label": student_names.get(transaction.get("student_id")),
-            }
-        )
-
-    return {
-        "stats": {
-            "student_count": len(students),
-            "active_student_count": sum(
-                1
-                for student in students
-                if str(student.get("status", "")).upper() == "ACTIVE"
-            ),
-            "total_balance": total_balance,
-            "total_charge": total_charge,
-            "total_spend": total_spend,
-            "booth_count": len(booths),
-            "admin_count": len(admins),
-            "transaction_count": len(amount_rows),
-        },
-        "booths": booths,
-        "admins": admins,
-        "transactions": enriched_transactions,
-    }
+    response = get_supabase().rpc("get_admin_dashboard_overview").execute()
+    if not response.data:
+        raise RuntimeError("관리 데이터를 불러오지 못했습니다.")
+    return response.data
 
 
 @app.get("/api/booth/sales")
@@ -937,68 +827,30 @@ def create_exchange_student(
     validate_balance_value(amount)
 
     try:
-        existing_response = (
-            get_supabase()
-            .table("students")
-            .select("id")
-            .eq("nfc_serial", nfc_serial)
-            .limit(1)
-            .execute()
-        )
-        if existing_response.data:
-            raise HTTPException(status_code=409, detail="이미 등록된 학생증입니다.")
-
-        insert_response = (
-            get_supabase()
-            .table("students")
-            .insert(
-                {
-                    "nfc_serial": nfc_serial,
-                    "student_number": student_number,
-                    "name": name,
-                    "balance": amount,
-                    "status": "ACTIVE",
-                }
-            )
-            .execute()
-        )
-    except HTTPException:
-        raise
+        response = get_supabase().rpc(
+            "register_student_card",
+            {
+                "p_nfc_serial": nfc_serial,
+                "p_student_number": student_number,
+                "p_name": name,
+                "p_initial_amount": amount,
+                "p_admin_id": exchange_admin["id"],
+            }
+        ).execute()
     except Exception as error:
-        logger.exception("Student registration failed")
-        raise server_error("학생 정보를 저장하지 못했습니다.") from error
-    if not insert_response.data:
+        logger.exception("Student registration RPC failed")
+        err_msg = str(error)
+        detail = "학생 등록에 실패했습니다."
+        if hasattr(error, "message"):
+            detail = error.message
+        elif "message" in err_msg:
+            detail = err_msg
+        raise HTTPException(status_code=400, detail=detail)
+
+    if not response.data:
         raise HTTPException(status_code=500, detail="학생 정보를 저장하지 못했습니다.")
 
-    student_record = insert_response.data[0]
-    student_id = student_record.get("id")
-    if not student_id:
-        raise HTTPException(status_code=500, detail="학생 ID를 확인하지 못했습니다.")
-
-    if amount > 0:
-        try:
-            insert_transaction(
-                admin=exchange_admin,
-                student_id=str(student_id),
-                transaction_type="CHARGE",
-                amount=amount,
-                balance_after=amount,
-                description="신규 학생증 등록 초기 충전",
-            )
-        except Exception as error:
-            logger.exception("Initial charge transaction failed")
-            try:
-                get_supabase().table("students").delete().eq("id", student_id).execute()
-            except Exception:
-                logger.exception("Student rollback after transaction failure failed")
-            raise server_error("충전 거래 내역을 저장하지 못했습니다.") from error
-
-    student = {
-        column: value for column, value in student_record.items()
-        if column != "id"
-    }
-    return {"student": student}
-
+    return {"student": response.data}
 
 @app.post("/api/exchange/students/{serial_number}/charge")
 def charge_exchange_student(
@@ -1013,81 +865,28 @@ def charge_exchange_student(
     validate_charge_amount(amount)
 
     try:
-        student_response = (
-            get_supabase()
-            .table("students")
-            .select("*")
-            .eq("nfc_serial", serial_number)
-            .eq("status", "ACTIVE")
-            .limit(1)
-            .execute()
-        )
+        response = get_supabase().rpc(
+            "process_student_charge",
+            {
+                "p_nfc_serial": serial_number,
+                "p_amount": amount,
+                "p_admin_id": exchange_admin["id"],
+            }
+        ).execute()
     except Exception as error:
-        logger.exception("Student lookup before charge failed")
-        raise server_error("학생 잔액을 확인하지 못했습니다.") from error
+        logger.exception("Student charge RPC failed")
+        err_msg = str(error)
+        detail = "충전에 실패했습니다."
+        if hasattr(error, "message"):
+            detail = error.message
+        elif "message" in err_msg:
+            detail = err_msg
+        raise HTTPException(status_code=400, detail=detail)
 
-    if not student_response.data:
-        raise HTTPException(status_code=404, detail="등록된 학생증이 아닙니다.")
+    if not response.data:
+        raise HTTPException(status_code=500, detail="충전 정보를 저장하지 못했습니다.")
 
-    student = student_response.data[0]
-    student_id = student.get("id")
-    if not student_id:
-        raise HTTPException(status_code=500, detail="학생 ID를 확인하지 못했습니다.")
-    try:
-        current_balance = int(student.get("balance") or 0)
-    except (TypeError, ValueError) as error:
-        raise HTTPException(status_code=500, detail="현재 잔액 형식이 올바르지 않습니다.") from error
-
-    validate_balance_value(current_balance + amount)
-
-    try:
-        update_response = (
-            get_supabase()
-            .table("students")
-            .update({"balance": current_balance + amount})
-            .eq("nfc_serial", serial_number)
-            .eq("status", "ACTIVE")
-            .eq("balance", current_balance)
-            .select("*")
-            .execute()
-        )
-    except Exception as error:
-        logger.exception("Student charge update failed")
-        raise server_error("충전 정보를 저장하지 못했습니다.") from error
-
-    if not update_response.data:
-        raise HTTPException(
-            status_code=409,
-            detail="잔액이 변경되었습니다. 학생증을 다시 조회한 뒤 충전해주세요.",
-        )
-
-    updated_balance = current_balance + amount
-    try:
-        insert_transaction(
-            admin=exchange_admin,
-            student_id=str(student_id),
-            transaction_type="CHARGE",
-            amount=amount,
-            balance_after=updated_balance,
-            description="환전소 포인트 충전",
-        )
-    except Exception as error:
-        logger.exception("Charge transaction insert failed")
-        try:
-            get_supabase().table("students").update(
-                {"balance": current_balance}
-            ).eq("id", student_id).eq("balance", updated_balance).execute()
-        except Exception:
-            logger.exception("Balance rollback after transaction failure failed")
-        raise server_error("충전 거래 내역을 저장하지 못했습니다.") from error
-
-    updated_student = {
-        column: value
-        for column, value in update_response.data[0].items()
-        if column != "id"
-    }
-    return {"student": updated_student}
-
+    return {"student": response.data}
 
 @app.post("/api/exchange/students/{serial_number}/balance")
 def update_exchange_student_balance(
@@ -1104,84 +903,29 @@ def update_exchange_student_balance(
     validate_balance_value(balance)
 
     try:
-        student_response = (
-            get_supabase()
-            .table("students")
-            .select("*")
-            .eq("nfc_serial", serial_number)
-            .eq("status", "ACTIVE")
-            .limit(1)
-            .execute()
-        )
+        response = get_supabase().rpc(
+            "process_student_balance_adjustment",
+            {
+                "p_nfc_serial": serial_number,
+                "p_new_balance": balance,
+                "p_admin_id": exchange_admin["id"],
+                "p_max_delta": MAX_CHARGE_AMOUNT,
+            }
+        ).execute()
     except Exception as error:
-        logger.exception("Student lookup before balance adjustment failed")
-        raise server_error("학생 잔액을 확인하지 못했습니다.") from error
+        logger.exception("Student balance adjustment RPC failed")
+        err_msg = str(error)
+        detail = "잔액 수정에 실패했습니다."
+        if hasattr(error, "message"):
+            detail = error.message
+        elif "message" in err_msg:
+            detail = err_msg
+        raise HTTPException(status_code=400, detail=detail)
 
-    if not student_response.data:
-        raise HTTPException(status_code=404, detail="등록된 학생증이 아닙니다.")
+    if not response.data:
+        raise HTTPException(status_code=500, detail="잔액을 수정하지 못했습니다.")
 
-    student = student_response.data[0]
-    student_id = student.get("id")
-    try:
-        current_balance = int(student.get("balance") or 0)
-    except (TypeError, ValueError) as error:
-        raise HTTPException(status_code=500, detail="현재 잔액 형식이 올바르지 않습니다.") from error
-
-    if balance == current_balance:
-        raise HTTPException(status_code=400, detail="현재 잔액과 다른 금액을 입력해주세요.")
-
-    balance_delta = balance - current_balance
-    if abs(balance_delta) > MAX_CHARGE_AMOUNT:
-        raise HTTPException(
-            status_code=400,
-            detail=f"1회 잔액 조정 한도는 {MAX_CHARGE_AMOUNT:,}원입니다.",
-        )
-    try:
-        update_response = (
-            get_supabase()
-            .table("students")
-            .update({"balance": balance})
-            .eq("id", student_id)
-            .eq("status", "ACTIVE")
-            .eq("balance", current_balance)
-            .select("*")
-            .execute()
-        )
-    except Exception as error:
-        logger.exception("Student balance adjustment failed")
-        raise server_error("잔액을 수정하지 못했습니다.") from error
-
-    if not update_response.data:
-        raise HTTPException(
-            status_code=409,
-            detail="잔액이 변경되었습니다. 학생증을 다시 조회한 뒤 수정해주세요.",
-        )
-
-    try:
-        insert_transaction(
-            admin=exchange_admin,
-            student_id=str(student_id),
-            transaction_type="ADJUSTMENT",
-            amount=balance_delta,
-            balance_after=balance,
-            description="환전소 잔액 직접 수정",
-        )
-    except Exception as error:
-        logger.exception("Balance adjustment transaction insert failed")
-        try:
-            get_supabase().table("students").update(
-                {"balance": current_balance}
-            ).eq("id", student_id).eq("balance", balance).execute()
-        except Exception:
-            logger.exception("Balance rollback after adjustment transaction failure failed")
-        raise server_error("잔액 수정 거래 내역을 저장하지 못했습니다.") from error
-
-    updated_student = {
-        column: value
-        for column, value in update_response.data[0].items()
-        if column != "id"
-    }
-    return {"student": updated_student}
+    return {"student": response.data}
 
 
 @app.post("/api/exchange/students/{serial_number}/profile")
