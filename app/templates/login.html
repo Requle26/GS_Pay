@@ -34,7 +34,7 @@
     </form>
   </section>
 </main>
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
   document.getElementById("login-form").addEventListener("submit", function () {
     const submitButton = document.getElementById("login-submit");
     submitButton.disabled = true;

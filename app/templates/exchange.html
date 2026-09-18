@@ -204,7 +204,7 @@
     </p>
   </section>
 </main>
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
   window.studentColumns = {{ student_columns | tojson }};
 </script>
 <script src="{{ url_for('static', path='js/exchange.js') }}"></script>

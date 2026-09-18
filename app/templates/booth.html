@@ -161,7 +161,7 @@
     <p id="sales-status" class="booth-status" aria-live="polite"></p>
   </section>
 </main>
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
   window.boothMenus = {{ menus | tojson }};
 </script>
 <script src="{{ url_for('static', path='js/booth.js') }}"></script>

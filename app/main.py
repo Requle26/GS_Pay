@@ -1,6 +1,7 @@
 from pathlib import Path
 import logging
 import os
+import secrets
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -62,6 +63,27 @@ async def csrf_origin_middleware(request: Request, call_next):
     except HTTPException as exc:
         return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
     return await call_next(request)
+
+
+@app.middleware("http")
+async def content_security_policy_middleware(request: Request, call_next):
+    """Attach a per-response CSP nonce before rendering templates."""
+    nonce = secrets.token_urlsafe(16)
+    request.state.csp_nonce = nonce
+    response = await call_next(request)
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        f"script-src 'self' 'nonce-{nonce}'; "
+        "style-src 'self'; "
+        "img-src 'self' data:; "
+        "connect-src 'self'; "
+        "font-src 'self'; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'; "
+        "frame-ancestors 'none'"
+    )
+    return response
 
 
 def get_dashboard_url(admin: dict) -> str:

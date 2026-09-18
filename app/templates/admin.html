@@ -320,7 +320,7 @@
     </p>
   </section>
 </main>
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
   window.adminBooths = {{ booths | tojson }};
   window.adminAccounts = {{ admins | tojson }};
   window.adminStats = {{ stats | tojson }};
