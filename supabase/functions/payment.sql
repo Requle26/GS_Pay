@@ -81,3 +81,9 @@ begin
     );
 end;
 $$;
+
+revoke execute on function public.process_payment(uuid, uuid, uuid, uuid)
+from public;
+
+grant execute on function public.process_payment(uuid, uuid, uuid, uuid)
+to service_role;

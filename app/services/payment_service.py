@@ -3,8 +3,6 @@ import logging
 from fastapi import HTTPException
 
 from app.database import get_supabase
-from app.security import server_error
-from app.services.transaction_service import insert_transaction
 
 
 logger = logging.getLogger(__name__)
@@ -94,74 +92,26 @@ def pay_menu(
                 f"현재 잔액: {current_balance:,}원"
             ),
         )
-
-    balance_after = current_balance - price
-
-    update_response = (
-        supabase
-        .table("students")
-        .update(
-            {
-                "balance": balance_after,
-            }
-        )
-        .eq("id", student["id"])
-        .eq("status", "ACTIVE")
-        .eq("balance", current_balance)
-        .select(
-            "id, name, balance, status"
-        )
-        .execute()
-    )
-
-    if not update_response.data:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "잔액이 변경되었습니다. "
-                "다시 결제해주세요."
-            ),
-        )
-
+    
     try:
-        insert_transaction(
-            admin=admin,
-            student_id=str(student["id"]),
-            transaction_type="SPEND",
-            amount=price,
-            balance_after=balance_after,
-            description=f"{menu['name']} 결제",
-        )
+        rpc_response = supabase.rpc(
+            "process_payment",
+            {
+                "p_student_id": str(student["id"]),
+                "p_booth_id": str(admin["booth_id"]),
+                "p_admin_id": str(admin["id"]),
+                "p_menu_id": str(menu_id),
+            },
+        ).execute()
 
     except Exception as error:
-        logger.exception(
-            "Booth payment transaction insert failed"
-        )
-
-        try:
-            (
-                supabase
-                .table("students")
-                .update(
-                    {
-                        "balance": current_balance,
-                    }
-                )
-                .eq("id", student["id"])
-                .eq("balance", balance_after)
-                .execute()
-            )
-
-        except Exception:
-            logger.exception(
-                "Payment balance rollback failed"
-            )
-
-        raise server_error(
-            "결제 내역을 저장하지 못했습니다."
+        logger.exception("Booth payment RPC failed")
+        raise HTTPException(
+            status_code=500,
+            detail="결제 처리에 실패했습니다.",
         ) from error
 
     return {
         "menu": menu,
-        "student": update_response.data[0],
+        "student": rpc_response.data["student"],
     }
