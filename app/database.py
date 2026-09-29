@@ -6,6 +6,7 @@ from supabase import Client, create_client
 
 @lru_cache
 def get_supabase() -> Client:
-    url = os.environ["SUPABASE_URL"]
-    key = os.environ["SUPABASE_SECRET_KEY"]
-    return create_client(url, key)
+    return create_client(
+        os.environ["SUPABASE_URL"],
+        os.environ["SUPABASE_SECRET_KEY"],
+    )
