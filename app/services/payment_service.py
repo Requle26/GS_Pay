@@ -95,12 +95,12 @@ def pay_menu(
     
     try:
         rpc_response = supabase.rpc(
-            "process_payment",
+            "process_booth_payment",
             {
-                "p_student_id": str(student["id"]),
+                "p_nfc_serial": nfc_serial,
+                "p_menu_id": str(menu_id),
                 "p_booth_id": str(admin["booth_id"]),
                 "p_admin_id": str(admin["id"]),
-                "p_menu_id": str(menu_id),
             },
         ).execute()
 
@@ -113,5 +113,10 @@ def pay_menu(
 
     return {
         "menu": menu,
-        "student": rpc_response.data["student"],
+        "student": {
+            "id": rpc_response.data["student_id"],
+            "name": rpc_response.data["student_name"],
+            "balance": rpc_response.data["balance_after"],
+            "status": student["status"],
+        },
     }
