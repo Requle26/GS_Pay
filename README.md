@@ -1,28 +1,63 @@
 # GS_Pay
-경소페이
+
+## 경소페이
 
 경북소프트웨어마이스터고등학교에서 사용하는 축제 포인트 환전 서비스입니다.
 
-학생증에 내장되어있는 NFC태그를 사용합니다
+학생증에 내장된 NFC 태그를 사용하여 학생의 포인트를 충전하고,
+축제 부스에서 결제할 수 있습니다.
 
-로컬 환경 : uvicorn app.main:app --reload --env-file .env
+---
 
-## 개발 환경
+## 로컬 실행
+
+### 1. 가상환경 활성화
 
 ```bash
-# 가상환경 활성화
 source .venv/bin/activate
 
-# 서버 실행 (자동 새로고침)
+2. 서버 실행
 uvicorn app.main:app --reload --env-file .env
-```
 
-브라우저에서 http://127.0.0.1:8000 을 열면 됩니다. API 문서는 로컬에서 `ENABLE_DOCS=true`로 켠 뒤 http://127.0.0.1:8000/docs 에서 확인할 수 있습니다.
+브라우저에서 아래 주소로 접속합니다.
+http://127.0.0.1:8000
 
-## 관리자 로그인 설정
+API 문서가 필요한 경우 .env에서 ENABLE_DOCS=true로 설정한 후
+http://127.0.0.1:8000/docs
 
-1. `.env.example`을 참고해 `.env`에 `SUPABASE_PUBLISHABLE_KEY`를 추가합니다.
-2. Supabase Authentication에서 관리자 이메일·비밀번호 계정을 만듭니다.
-3. 해당 Auth 사용자 UUID와 같은 값을 `admins.id`에 저장하고, `status`를 `ACTIVE`로 설정합니다.
+에서 확인할 수 있습니다.
+관리자 로그인 설정
+1. .env.example을 참고하여 .env를 설정합니다.
+2. Supabase Authentication에서 관리자 계정을 생성합니다.
+3. 생성된 Auth 사용자 UUID를 admins.id에 등록합니다.
+4. 해당 관리자의 status를 ACTIVE로 설정합니다.
+관리자는 역할에 따라 다음 기능을 사용할 수 있습니다.
+- ADMIN : 전체 시스템 관리
+- BOOTH : 부스 및 메뉴 관리, 결제
+- EXCHANGE : 학생 및 포인트 관리
+환경 변수
+로컬에서는 .env 파일을 사용합니다.
+SUPABASE_URL=
+SUPABASE_PUBLISHABLE_KEY=
+SUPABASE_SECRET_KEY=
 
-Vercel에는 `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`를 환경 변수로 추가합니다. 운영 환경에서는 `COOKIE_SECURE=true`를 사용하고, 배포 도메인을 `ALLOWED_ORIGINS`에 넣습니다.
+배포 환경에서는 Vercel 환경 변수에 동일한 값을 설정합니다.
+운영 환경에서는 다음 설정을 권장합니다.
+COOKIE_SECURE=true
+ALLOWED_ORIGINS=배포된_서비스_주소
+
+주요 사용 방법
+학생
+1. 학생증을 NFC 리더기에 인식합니다.
+2. 잔액을 확인합니다.
+3. 축제 부스에서 학생증을 인식하여 결제합니다.
+부스 관리자
+1. 관리자 계정으로 로그인합니다.
+2. 메뉴를 등록하고 가격을 설정합니다.
+3. 학생증을 인식하여 결제합니다.
+4. 판매 내역을 확인합니다.
+교환 관리자
+1. 학생을 등록합니다.
+2. 학생증을 등록합니다.
+3. 포인트를 충전하거나 잔액을 조정합니다.
+4. 필요한 경우 학생의 이용을 정지하거나 해제합니다.
